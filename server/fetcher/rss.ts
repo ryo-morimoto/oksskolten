@@ -187,8 +187,12 @@ export async function fetchAndParseRss(feed: Feed, opts?: { skipCache?: boolean 
   return { ...result, items: cleanItems(assignCssBridgePseudoDates(items, rssUrl)) }
 }
 
+const RSS_BRIDGE_ERROR_RE = /^Bridge returned error/i
+
 function cleanItems(items: RssItem[]): RssItem[] {
-  return items.map(item => ({ ...item, url: cleanUrl(item.url) }))
+  return items
+    .filter(item => !RSS_BRIDGE_ERROR_RE.test(item.title))
+    .map(item => ({ ...item, url: cleanUrl(item.url) }))
 }
 
 async function parseRssXml(xml: string): Promise<RssItem[]> {
