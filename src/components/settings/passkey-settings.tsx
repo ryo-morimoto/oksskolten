@@ -83,9 +83,9 @@ export function PasskeySettings() {
       void mutatePasskeys()
       void mutateMethods()
       showMessage(t('settings.passkeyAdded'), 'success')
-    } catch (err: any) {
-      if (err?.name !== 'NotAllowedError') {
-        showMessage(err.message || 'Registration failed', 'error')
+    } catch (err: unknown) {
+      if (!(err instanceof Error) || err.name !== 'NotAllowedError') {
+        showMessage(err instanceof Error ? err.message : 'Registration failed', 'error')
       }
     } finally {
       setRegistering(false)
@@ -109,10 +109,10 @@ export function PasskeySettings() {
     try {
       await apiDelete(`/api/auth/passkeys/${id}`)
       showMessage(t('settings.passkeyDeleted'), 'success')
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Rollback on failure
       void mutatePasskeys(prev, false)
-      showMessage(err.message || 'Delete failed', 'error')
+      showMessage(err instanceof Error ? err.message : 'Delete failed', 'error')
     } finally {
       setDeletingId(null)
     }

@@ -100,9 +100,9 @@ export function LoginPage({ onLogin }: { onLogin?: (token: string) => void }) {
       } else {
         window.location.href = '/'
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       // NotAllowedError = user cancelled the dialog
-      if (err?.name !== 'NotAllowedError') {
+      if (!(err instanceof Error) || err.name !== 'NotAllowedError') {
         setError(t('login.passkeyError'))
       }
     } finally {

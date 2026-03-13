@@ -71,8 +71,8 @@ export function GitHubOAuthSettings() {
       setClientId(null)
       setAllowedUsers(null)
       showMessage(t('settings.githubSaved'), 'success')
-    } catch (err: any) {
-      showMessage(err.message || 'Save failed', 'error')
+    } catch (err: unknown) {
+      showMessage(err instanceof Error ? err.message : 'Save failed', 'error')
     } finally {
       setSaving(false)
     }
@@ -92,8 +92,8 @@ export function GitHubOAuthSettings() {
       await apiPost('/api/oauth/github/toggle', { enabled: newEnabled })
       void mutateConfig()
       void mutateMethods()
-    } catch (err: any) {
-      showMessage(err.message || 'Toggle failed', 'error')
+    } catch (err: unknown) {
+      showMessage(err instanceof Error ? err.message : 'Toggle failed', 'error')
     } finally {
       setToggling(false)
     }

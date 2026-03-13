@@ -85,8 +85,8 @@ export function PasswordSettings() {
     try {
       await apiPost('/api/auth/password/toggle', { enabled: newEnabled })
       void mutateMethods()
-    } catch (err: any) {
-      showMessage(err.message || t('settings.cannotDisablePassword'), 'error')
+    } catch (err: unknown) {
+      showMessage(err instanceof Error ? err.message : t('settings.cannotDisablePassword'), 'error')
     } finally {
       setToggling(false)
     }
@@ -115,8 +115,8 @@ export function PasswordSettings() {
       setAuthToken(res.token)
       cancelPasswordEdit()
       showMessage(t('settings.passwordChanged'), 'success')
-    } catch (err: any) {
-      showMessage(err.message || t('settings.passwordChangeFailed'), 'error')
+    } catch (err: unknown) {
+      showMessage(err instanceof Error ? err.message : t('settings.passwordChangeFailed'), 'error')
     } finally {
       setSubmitting(false)
     }
@@ -141,8 +141,8 @@ export function PasswordSettings() {
       cancelEmailEdit()
       void mutateMe()
       showMessage(t('settings.emailChanged'), 'success')
-    } catch (err: any) {
-      showMessage(err.message || t('settings.emailChangeFailed'), 'error')
+    } catch (err: unknown) {
+      showMessage(err instanceof Error ? err.message : t('settings.emailChangeFailed'), 'error')
     } finally {
       setEmailSubmitting(false)
     }

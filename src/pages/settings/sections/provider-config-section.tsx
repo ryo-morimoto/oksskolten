@@ -74,8 +74,8 @@ function ApiProviderCard({ provider, t }: { provider: string; t: TFunc }) {
       void mutateKeyStatus()
       setApiKeyInput('')
       showMessage(savedMsg, 'success')
-    } catch (err: any) {
-      showMessage(err.message || 'Save failed', 'error')
+    } catch (err: unknown) {
+      showMessage(err instanceof Error ? err.message : 'Save failed', 'error')
     } finally {
       setSaving(false)
     }
@@ -89,8 +89,8 @@ function ApiProviderCard({ provider, t }: { provider: string; t: TFunc }) {
       void mutateKeyStatus()
       setApiKeyInput('')
       showMessage(deletedMsg, 'success')
-    } catch (err: any) {
-      showMessage(err.message || 'Delete failed', 'error')
+    } catch (err: unknown) {
+      showMessage(err instanceof Error ? err.message : 'Delete failed', 'error')
     } finally {
       setSaving(false)
     }
