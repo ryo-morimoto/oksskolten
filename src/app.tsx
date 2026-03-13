@@ -250,17 +250,20 @@ function AnimatedRoutes() {
   const isDetailSlide = isTouchDevice && pageType === 'detail' && currentAction === 'PUSH'
   // On POP (swipe-back), skip the exit slide to avoid doubling with the native animation
   const isExitSlide = isTouchDevice && pageType === 'detail' && currentAction === 'PUSH'
+  const isPop = currentAction === 'POP'
 
   return (
-    <AnimatePresence mode="popLayout" initial={false}>
+    <AnimatePresence mode="wait" initial={false}>
       <motion.div
         key={pageType === 'detail' ? location.pathname : pageType}
-        initial={isDetailSlide ? { x: '100%', opacity: 1 } : { opacity: 0 }}
+        initial={isPop ? false : (isDetailSlide ? { x: '100%', opacity: 1 } : { opacity: 0 })}
         animate={isDetailSlide ? { x: 0, opacity: 1 } : { opacity: 1 }}
-        exit={isExitSlide ? { x: '100%', opacity: 1 } : { opacity: 0 }}
-        transition={isDetailSlide
-          ? { type: 'tween', duration: 0.25, ease: [0.32, 0.72, 0, 1] }
-          : { duration: 0.15 }
+        exit={isPop ? { opacity: 1 } : (isExitSlide ? { x: '100%', opacity: 1 } : { opacity: 0 })}
+        transition={isPop
+          ? { duration: 0 }
+          : isDetailSlide
+            ? { type: 'tween', duration: 0.25, ease: [0.32, 0.72, 0, 1] }
+            : { duration: 0.15 }
         }
         style={{ minHeight: '100vh' }}
       >
