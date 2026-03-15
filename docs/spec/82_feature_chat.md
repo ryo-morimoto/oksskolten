@@ -80,6 +80,93 @@ Tool definitions are managed in a neutral `ToolDef` format in `server/chat/tools
 
 The MCP server (`server/chat/mcp-server.ts`) starts with stdio transport when executed directly, and is connected to by Claude Code.
 
+### Using the MCP Server with Claude Code
+
+The MCP server can be used directly from Claude Code, giving you the same chat experience as the web UI. The data directory resolves in this order:
+
+1. `DATA_DIR` environment variable
+2. `./data` (project checkout or Docker container)
+3. `~/.oksskolten/data/` (standalone fallback)
+
+#### Option 1: Local development (Node.js required)
+
+The repository includes `.mcp.json`, so cloning the repo and running `npm install` is all that's needed. Claude Code will automatically discover and connect to the MCP server.
+
+```json
+// .mcp.json (included in repository)
+{
+  "mcpServers": {
+    "oksskolten": {
+      "command": "npx",
+      "args": ["tsx", "server/chat/mcp-server.ts"]
+    }
+  }
+}
+```
+
+#### Option 2: Docker one-liner (no Node.js required)
+
+Install the MCP server globally with a single command:
+
+```bash
+claude mcp add --scope user --transport stdio oksskolten \
+  -- docker run -i --rm -v ~/.oksskolten/data:/app/data babarot/oksskolten \
+  npx tsx server/chat/mcp-server.ts
+```
+
+This makes the RSS reader tools available from any project. Data is stored in `~/.oksskolten/data/`.
+
+Alternatively, add the following to your Claude Code MCP settings (`~/.claude.json` or project `.mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "oksskolten": {
+      "command": "docker",
+      "args": [
+        "run", "-i", "--rm",
+        "-v", "~/.oksskolten/data:/app/data",
+        "babarot/oksskolten",
+        "npx", "tsx", "server/chat/mcp-server.ts"
+      ]
+    }
+  }
+}
+```
+
+#### Option 3: SSH into production server
+
+When the app is running via `docker compose up` in production with `DATA_DIR=$HOME/.oksskolten/data` in `.env`, you can SSH into the server and run `claude` to query articles through the MCP server. The MCP server reads the same `~/.oksskolten/data/rss.db` that the Docker container writes to (SQLite WAL mode allows concurrent readers).
+
+Setup on the production server:
+
+```bash
+# Install the MCP server (run once)
+claude mcp add --scope user --transport stdio oksskolten \
+  -- docker run -i --rm -v ~/.oksskolten/data:/app/data babarot/oksskolten \
+  npx tsx server/chat/mcp-server.ts
+```
+
+Then from any directory:
+
+```bash
+ssh prod-server
+claude  # MCP tools are available immediately
+```
+
+#### Option 4: Local Claude Code → remote production server
+
+Connect your local Claude Code to a production server's database without SSH-ing in. This wraps SSH as a stdio transport — the remote Docker container's stdin/stdout becomes the MCP channel.
+
+```bash
+claude mcp add --scope user --transport stdio oksskolten \
+  -- ssh prod-server docker run -i --rm \
+  -v ~/.oksskolten/data:/app/data babarot/oksskolten \
+  npx tsx server/chat/mcp-server.ts
+```
+
+Requires SSH key authentication (password prompts break stdio).
+
 ### Anthropic API Adapter
 
 `server/chat/adapter-anthropic.ts`. Streams via `anthropic.messages.stream()` and executes up to 10 rounds of tool loops.

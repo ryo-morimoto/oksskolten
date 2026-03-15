@@ -6,13 +6,14 @@ import { USER_AGENT } from './http.js'
 import { getSetting } from '../db/settings.js'
 import { updateArticleContent, markImagesArchived, clearImagesArchived } from '../db/articles.js'
 import { logger } from '../logger.js'
+import { dataPath } from '../paths.js'
 
 const log = logger.child('fetcher')
 
 // Default images directory, can be overridden by settings
 function getImagesDir(): string {
   const custom = getSetting('images.storage_path')
-  return custom || path.resolve('data/articles/images')
+  return custom || dataPath('articles', 'images')
 }
 
 function getMaxSizeBytes(): number {

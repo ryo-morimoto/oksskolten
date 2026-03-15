@@ -35,6 +35,7 @@ import { getSetting } from '../db/settings.js'
 import { DEFAULT_LANGUAGE } from '../../shared/lang.js'
 import path from 'node:path'
 import fs from 'node:fs'
+import { dataPath } from '../paths.js'
 import { NumericIdParams, parseOrBadRequest } from '../lib/validation.js'
 
 function getTranslateTargetLang(): string {
@@ -564,7 +565,7 @@ export async function articleRoutes(api: FastifyInstance): Promise<void> {
         return
       }
 
-      const storagePath = getSetting('images.storage_path') || path.resolve('data/articles/images')
+      const storagePath = getSetting('images.storage_path') || dataPath('articles', 'images')
       const filepath = path.join(storagePath, sanitized)
 
       if (!fs.existsSync(filepath)) {

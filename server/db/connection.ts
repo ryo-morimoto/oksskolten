@@ -3,6 +3,7 @@ import fs from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import Database from 'libsql'
 import { logger } from '../logger.js'
+import { dataPath } from '../paths.js'
 
 const log = logger.child('db')
 
@@ -34,7 +35,7 @@ function openDb(dbUrl: string) {
   return instance
 }
 
-let db = openDb(process.env.DATABASE_URL || 'file:./data/rss.db')
+let db = openDb(process.env.DATABASE_URL || `file:${dataPath('rss.db')}`)
 
 export function getDb() {
   return db

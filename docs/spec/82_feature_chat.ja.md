@@ -80,6 +80,93 @@ server/chat/
 
 MCP サーバー（`server/chat/mcp-server.ts`）は直接実行時に stdio transport で起動し、Claude Code から接続される。
 
+### Claude Code から MCP サーバーを使う
+
+MCP サーバーを Claude Code から直接利用でき、Web UI と同じチャット体験が得られる。データディレクトリは以下の優先順で解決される:
+
+1. `DATA_DIR` 環境変数
+2. `./data`（プロジェクトディレクトリまたは Docker コンテナ内）
+3. `~/.oksskolten/data/`（スタンドアロン時のフォールバック）
+
+#### 方法 1: ローカル開発（Node.js が必要）
+
+リポジトリに `.mcp.json` が含まれているため、クローンして `npm install` するだけで利用可能。Claude Code が自動的に MCP サーバーを検出・接続する。
+
+```json
+// .mcp.json（リポジトリに同梱）
+{
+  "mcpServers": {
+    "oksskolten": {
+      "command": "npx",
+      "args": ["tsx", "server/chat/mcp-server.ts"]
+    }
+  }
+}
+```
+
+#### 方法 2: Docker ワンライナー（Node.js 不要）
+
+1コマンドで MCP サーバーをユーザーレベルにインストールできる:
+
+```bash
+claude mcp add --scope user --transport stdio oksskolten \
+  -- docker run -i --rm -v ~/.oksskolten/data:/app/data babarot/oksskolten \
+  npx tsx server/chat/mcp-server.ts
+```
+
+これにより、どのプロジェクトからでも RSS リーダーのツールが利用可能になる。データは `~/.oksskolten/data/` に保存される。
+
+手動で設定する場合は、Claude Code の MCP 設定（`~/.claude.json` またはプロジェクトの `.mcp.json`）に以下を追加する:
+
+```json
+{
+  "mcpServers": {
+    "oksskolten": {
+      "command": "docker",
+      "args": [
+        "run", "-i", "--rm",
+        "-v", "~/.oksskolten/data:/app/data",
+        "babarot/oksskolten",
+        "npx", "tsx", "server/chat/mcp-server.ts"
+      ]
+    }
+  }
+}
+```
+
+#### 方法 3: 本番サーバーに SSH して利用
+
+本番環境で `.env` に `DATA_DIR=$HOME/.oksskolten/data` を設定して `docker compose up` している場合、SSH して `claude` を起動するだけで記事を問い合わせできる。MCP サーバーは Docker コンテナが書き込んでいる同じ `~/.oksskolten/data/rss.db` を読む（SQLite WAL モードにより読み取りは並行可能）。
+
+本番サーバーでのセットアップ:
+
+```bash
+# MCP サーバーをインストール（初回のみ）
+claude mcp add --scope user --transport stdio oksskolten \
+  -- docker run -i --rm -v ~/.oksskolten/data:/app/data babarot/oksskolten \
+  npx tsx server/chat/mcp-server.ts
+```
+
+以降は任意のディレクトリから:
+
+```bash
+ssh prod-server
+claude  # MCP ツールがすぐに使える
+```
+
+#### 方法 4: ローカル Claude Code → リモート本番サーバー
+
+SSH せずに、ローカルの Claude Code から本番サーバーのデータベースに接続する。SSH を stdio トランスポートとしてラップし、リモートの Docker コンテナの stdin/stdout が MCP チャネルになる。
+
+```bash
+claude mcp add --scope user --transport stdio oksskolten \
+  -- ssh prod-server docker run -i --rm \
+  -v ~/.oksskolten/data:/app/data babarot/oksskolten \
+  npx tsx server/chat/mcp-server.ts
+```
+
+SSH 鍵認証が必要（パスワード入力が入ると stdio が壊れる）。
+
 ### Anthropic API アダプター
 
 `server/chat/adapter-anthropic.ts`。`anthropic.messages.stream()` でストリーミングし、最大10ラウンドのツールループを実行する。
