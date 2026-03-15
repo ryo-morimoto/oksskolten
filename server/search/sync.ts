@@ -74,8 +74,16 @@ export async function rebuildSearchIndex(): Promise<void> {
       FROM articles
     `).all() as MeiliArticleDoc[]
 
-    for (let i = 0; i < rows.length; i += BATCH_SIZE) {
-      const batch = rows.slice(i, i + BATCH_SIZE)
+    // SQLite returns 0/1 for boolean expressions; Meilisearch needs true/false
+    const docs = rows.map((row) => ({
+      ...row,
+      is_unread: Boolean(row.is_unread),
+      is_liked: Boolean(row.is_liked),
+      is_bookmarked: Boolean(row.is_bookmarked),
+    }))
+
+    for (let i = 0; i < docs.length; i += BATCH_SIZE) {
+      const batch = docs.slice(i, i + BATCH_SIZE)
       await stagingIndex.addDocuments(batch).waitTask({ timeout: 60_000 })
     }
 
@@ -111,7 +119,7 @@ export async function rebuildSearchIndex(): Promise<void> {
 
     searchReady = true
     const elapsed = ((Date.now() - startedAt) / 1000).toFixed(1)
-    log.info(`Index rebuild complete: ${rows.length} articles in ${elapsed}s`)
+    log.info(`Index rebuild complete: ${docs.length} articles in ${elapsed}s`)
   } catch (err) {
     // On failure: keep searchReady as-is (true if previously built, false if first time)
     log.error('Index rebuild failed:', err)
