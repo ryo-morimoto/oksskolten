@@ -26,9 +26,9 @@ export async function googleTranslate(
     text,
     MAX_CHARS_PER_REQUEST,
     async (chunk) => {
-      const res = await fetch(`${API_URL}?key=${encodeURIComponent(apiKey)}`, {
+      const res = await fetch(API_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
         body: JSON.stringify({
           q: chunk,
           target: targetLang,

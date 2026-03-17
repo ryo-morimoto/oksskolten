@@ -81,7 +81,8 @@ describe('googleTranslate', () => {
     expect(mockFetch).toHaveBeenCalledOnce()
 
     const [url, opts] = mockFetch.mock.calls[0]
-    expect(url).toContain('key=test-key')
+    expect(url).not.toContain('key=')
+    expect(opts.headers['x-goog-api-key']).toBe('test-key')
     const body = JSON.parse(opts.body)
     expect(body.target).toBe('ja')
     expect(body.format).toBe('html')
