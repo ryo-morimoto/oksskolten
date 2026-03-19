@@ -44,6 +44,15 @@ function scoreExpr(prefix: string, opts?: { searchBoost?: boolean }): string {
   return `(${engagement} * ${decay}${boost})`
 }
 
+/** WHERE clause for articles that have engagement or a non-zero score. Shared with search sync. */
+export const SCORED_ARTICLES_WHERE = `(
+  liked_at IS NOT NULL
+  OR bookmarked_at IS NOT NULL
+  OR read_at IS NOT NULL
+  OR full_text_translated IS NOT NULL
+  OR score > 0
+)`
+
 /** Update score in DB and sync to search. Call within a transaction for atomicity. */
 function updateScoreDb(id: number): void {
   getDb().prepare(`UPDATE articles SET score = (${scoreExpr('')}) WHERE id = ?`).run(id)
@@ -62,11 +71,7 @@ export function updateScore(id: number): void {
 export function recalculateScores(): { updated: number } {
   const result = getDb().prepare(`
     UPDATE articles SET score = (${scoreExpr('')})
-    WHERE liked_at IS NOT NULL
-       OR bookmarked_at IS NOT NULL
-       OR read_at IS NOT NULL
-       OR full_text_translated IS NOT NULL
-       OR score > 0
+    WHERE ${SCORED_ARTICLES_WHERE}
   `).run()
   return { updated: result.changes }
 }

@@ -1,5 +1,6 @@
 import { getSearchClient, ARTICLES_INDEX, ARTICLES_STAGING_INDEX, type MeiliArticleDoc } from './client.js'
 import { getDb } from '../db/connection.js'
+import { SCORED_ARTICLES_WHERE } from '../db/articles.js'
 import { logger } from '../logger.js'
 
 const log = logger.child('search')
@@ -11,6 +12,11 @@ let rebuilding = false
 
 export function isSearchReady(): boolean {
   return searchReady
+}
+
+/** @internal Test-only helper to control rebuilding flag */
+export function _setRebuilding(value: boolean): void {
+  rebuilding = value
 }
 
 // --- Change log for rebuild consistency ---
@@ -205,6 +211,36 @@ export function deleteArticlesByFeedFromSearch(articleIds: number[]): void {
   } catch (err) {
     log.error('Failed to batch delete articles:', err)
   }
+}
+
+/**
+ * Bulk-sync scores for all articles that have engagement or a non-zero score.
+ * Uses the shared SCORED_ARTICLES_WHERE clause from server/db/articles.ts.
+ * Called after the daily score recalculation batch to keep Meilisearch in sync.
+ * Skips if an index rebuild is in progress (the rebuild will include fresh scores).
+ */
+export async function syncAllScoredArticlesToSearch(): Promise<number> {
+  if (rebuilding) {
+    log.info('Index rebuild in progress, skipping score sync')
+    return 0
+  }
+
+  const rows = getDb().prepare(`
+    SELECT id, score FROM articles
+    WHERE ${SCORED_ARTICLES_WHERE}
+  `).all() as { id: number; score: number }[]
+
+  if (rows.length === 0) return 0
+
+  const client = getSearchClient()
+  const index = client.index(ARTICLES_INDEX)
+
+  for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+    const batch = rows.slice(i, i + BATCH_SIZE)
+    await index.updateDocuments(batch.map(({ id, score }) => ({ id, score }))).waitTask({ timeout: 60_000 })
+  }
+
+  return rows.length
 }
 
 export function syncArticlesByFeedToSearch(docs: MeiliArticleDoc[]): void {

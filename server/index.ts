@@ -18,7 +18,7 @@ import { authRoutes } from './authRoutes.js'
 import { passkeyRoutes } from './passkeyRoutes.js'
 import { oauthRoutes } from './oauthRoutes.js'
 import { fetchAllFeeds } from './fetcher.js'
-import { rebuildSearchIndex, isSearchReady } from './search/sync.js'
+import { rebuildSearchIndex, isSearchReady, syncAllScoredArticlesToSearch } from './search/sync.js'
 
 // --- Startup guards ---
 if (process.env.AUTH_DISABLED === '1' && process.env.NODE_ENV !== 'development') {
@@ -165,16 +165,29 @@ cronTasks.push(cron.schedule(CRON_SCHEDULE, async () => {
     } catch (err) {
       log.error('[cron] Feed fetch error:', err)
     }
-    try {
-      const { updated } = recalculateScores()
-      log.info(`[cron] Scores recalculated: ${updated} articles`)
-    } catch (err) {
-      log.error('[cron] Score recalculation error:', err)
-    }
   })()
   activeFetchPromise = p
   await p
   activeFetchPromise = null
+}))
+
+// --- Score recalculation ---
+// Decoupled from feed fetch so the schedule can be tuned independently.
+// Default matches the original 5-minute interval; set SCORE_RECALC_SCHEDULE
+// to e.g. '0 3 * * *' (daily at 3 AM) if the event-driven path covers all
+// engagement actions and only time-decay refresh is needed.
+const SCORE_RECALC_SCHEDULE = process.env.SCORE_RECALC_SCHEDULE || '*/5 * * * *'
+cronTasks.push(cron.schedule(SCORE_RECALC_SCHEDULE, async () => {
+  try {
+    const { updated } = recalculateScores()
+    log.info(`[cron] Scores recalculated: ${updated} articles`)
+    if (updated > 0) {
+      const synced = await syncAllScoredArticlesToSearch()
+      log.info(`[cron] Score sync to search: ${synced} articles`)
+    }
+  } catch (err) {
+    log.error('[cron] Score recalculation error:', err)
+  }
 }))
 
 // --- Search index ---
