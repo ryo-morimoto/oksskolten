@@ -57,6 +57,19 @@ SELECT * FROM articles WHERE purged_at IS NULL;
 
 This makes the rule simple: if you're reading articles for display or aggregation, use the VIEW. If you see `FROM articles` in a SELECT, it should be intentional (write support, URL dedup, or purge logic).
 
+### Why `seen_at` (not `read_at`) for read-article retention
+
+The retention window for "read" articles is based on `seen_at`, not `read_at`. This application distinguishes two timestamps:
+
+| Column | Meaning | Set when |
+|--------|---------|----------|
+| `seen_at` | Article marked as read (no longer unread in the UI) | Scroll-mark-as-read, bulk mark-all-read, etc. |
+| `read_at` | Article content actually viewed | User opens the article detail page |
+
+`read_at` exists to power **read history** — a filtered view of articles the user truly opened — without noise from scroll-dismissed items. It is deliberately separated from `seen_at` so that read history remains meaningful.
+
+For retention, the relevant question is "has the user decided this article is no longer needed?" — which maps to `seen_at`. Using `read_at` would leave scroll-dismissed articles (never opened, just triaged away) in the database indefinitely, defeating the purpose of the retention policy.
+
 ## Consequences
 
 ### Benefits
