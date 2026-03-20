@@ -221,7 +221,8 @@ describe('PATCH /api/settings/preferences — AI provider/model enums', () => {
     expect(res.json().error).toMatch(/chat\.provider/)
   })
 
-  it('rejects invalid model value', async () => {
+  it('rejects invalid model value when provider is set', async () => {
+    upsertSetting('chat.provider', 'anthropic')
     const res = await app.inject({
       method: 'PATCH',
       url: '/api/settings/preferences',
@@ -229,7 +230,7 @@ describe('PATCH /api/settings/preferences — AI provider/model enums', () => {
       payload: { 'chat.model': 'nonexistent-model-9000' },
     })
     expect(res.statusCode).toBe(400)
-    expect(res.json().error).toMatch(/chat\.model/)
+    expect(res.json().error).toMatch(/not valid for provider/)
   })
 
   it('accepts all four valid provider values for chat', async () => {

@@ -51,6 +51,7 @@ export function TaskModelSection({ settings, t }: { settings: Settings; t: TFunc
     LLM_API_PROVIDERS.forEach((p, i) => { map[p] = !!llmKeyStatuses[i].data?.configured })
     TRANSLATE_SERVICE_PROVIDERS.forEach((p, i) => { map[p] = !!translateKeyStatuses[i].data?.configured })
     map['claude-code'] = claudeCodeReady
+    map['ollama'] = true  // Ollama requires no API key; always available
     return map
     // Recompute only when any key's configured status changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -58,7 +59,9 @@ export function TaskModelSection({ settings, t }: { settings: Settings; t: TFunc
     anthropicKey.data?.configured, geminiKey.data?.configured, openaiKey.data?.configured,
     googleTranslateKey.data?.configured, deeplKey.data?.configured, claudeCodeReady,
   ])
-  const hasAnyLlmKey = LLM_API_PROVIDERS.some(p => configuredKeys[p]) || claudeCodeReady
+  // Ollama requires no API key, so the task section is always enabled when Ollama is available as a provider.
+  // This is intentional: users should be able to configure provider/model even before starting the Ollama server.
+  const hasAnyLlmKey = LLM_API_PROVIDERS.some(p => configuredKeys[p]) || claudeCodeReady || configuredKeys['ollama']
   const hasAnyTranslateKey = TRANSLATE_SERVICE_PROVIDERS.some(p => configuredKeys[p])
   const hasAnyKey = hasAnyLlmKey || hasAnyTranslateKey
   const keysLoading = llmKeyStatuses.some(s => !s.data) || translateKeyStatuses.some(s => !s.data)
@@ -69,7 +72,9 @@ export function TaskModelSection({ settings, t }: { settings: Settings; t: TFunc
       providerValue: settings.chatProvider || '',
       setProvider: (v) => {
         settings.setChatProvider(v)
-        settings.setChatModel(DEFAULT_MODELS[v] || DEFAULT_MODELS.anthropic)
+        // Ollama models are dynamic; don't set a default (auto-selected by ModelSelect)
+        if (v !== 'ollama') settings.setChatModel(DEFAULT_MODELS[v] || DEFAULT_MODELS.anthropic)
+        else settings.setChatModel('')
       },
       modelValue: settings.chatModel || '',
       setModel: settings.setChatModel,
@@ -80,7 +85,8 @@ export function TaskModelSection({ settings, t }: { settings: Settings; t: TFunc
       providerValue: settings.summaryProvider || '',
       setProvider: (v) => {
         settings.setSummaryProvider(v)
-        settings.setSummaryModel(DEFAULT_MODELS[v] || DEFAULT_MODELS.anthropic)
+        if (v !== 'ollama') settings.setSummaryModel(DEFAULT_MODELS[v] || DEFAULT_MODELS.anthropic)
+        else settings.setSummaryModel('')
       },
       modelValue: settings.summaryModel || '',
       setModel: settings.setSummaryModel,
@@ -91,7 +97,8 @@ export function TaskModelSection({ settings, t }: { settings: Settings; t: TFunc
       providerValue: settings.translateProvider || '',
       setProvider: (v) => {
         settings.setTranslateProvider(v)
-        settings.setTranslateModel(DEFAULT_MODELS[v] || DEFAULT_MODELS.anthropic)
+        if (v !== 'ollama') settings.setTranslateModel(DEFAULT_MODELS[v] || DEFAULT_MODELS.anthropic)
+        else settings.setTranslateModel('')
       },
       modelValue: settings.translateModel || '',
       setModel: settings.setTranslateModel,
@@ -244,6 +251,20 @@ function ProviderButtons({ providers, selected, onSelect, t, configuredKeys }: {
 }
 
 function ModelSelect({ provider, modelValue, setModel, t }: { provider: string; modelValue: string; setModel: (v: string) => void; t: TFunc }) {
+  // Ollama: fetch dynamic model list
+  const { data: ollamaModels } = useSWR<{ models: Array<{ name: string; size: number; parameter_size: string }> }>(
+    provider === 'ollama' ? '/api/settings/ollama/models' : null,
+    fetcher,
+    { revalidateOnFocus: false },
+  )
+
+  // Auto-select first Ollama model when switching to ollama and no model is set
+  useEffect(() => {
+    if (provider === 'ollama' && ollamaModels?.models?.length && !modelValue) {
+      setModel(ollamaModels.models[0].name)
+    }
+  }, [provider, ollamaModels, modelValue, setModel])
+
   if (!provider) {
     return (
       <Select disabled>
@@ -254,6 +275,37 @@ function ModelSelect({ provider, modelValue, setModel, t }: { provider: string; 
       </Select>
     )
   }
+
+  if (provider === 'ollama') {
+    const models = ollamaModels?.models || []
+    if (models.length === 0) {
+      return (
+        <Select disabled>
+          <SelectTrigger>
+            <SelectValue placeholder={t('ollama.noModels')} />
+          </SelectTrigger>
+          <SelectContent />
+        </Select>
+      )
+    }
+    return (
+      <Select value={modelValue || undefined} onValueChange={setModel}>
+        <SelectTrigger>
+          <SelectValue placeholder={t('integration.selectModel')} />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectGroup>
+            {models.map(m => (
+              <SelectItem key={m.name} value={m.name}>
+                {m.name}{m.parameter_size ? ` (${m.parameter_size})` : ''}
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        </SelectContent>
+      </Select>
+    )
+  }
+
   return (
     <Select value={modelValue || undefined} onValueChange={setModel}>
       <SelectTrigger>

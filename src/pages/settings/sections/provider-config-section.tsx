@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import useSWR from 'swr'
-import { fetcher, apiPost } from '../../../lib/fetcher'
+import { fetcher, apiPost, apiPatch } from '../../../lib/fetcher'
 import { PROVIDER_LABELS, LLM_API_PROVIDERS, TRANSLATE_SERVICE_PROVIDERS } from '../../../data/aiModels'
 import { Input } from '@/components/ui/input'
 import { FormField } from '@/components/ui/form-field'
@@ -20,6 +20,7 @@ export function ProviderConfigSection({ t, settings }: { t: TFunc; settings: Set
             <ApiProviderCard key={provider} provider={provider} t={t} />
           ))}
           <ClaudeCodeCard t={t} />
+          <OllamaCard t={t} />
         </div>
       </div>
       <div>
@@ -261,6 +262,183 @@ function ClaudeCodeCard({ t }: { t: TFunc }) {
           </div>
         </details>
       </div>
+    </div>
+  )
+}
+
+function OllamaCard({ t }: { t: TFunc }) {
+  const { data: prefs, mutate: mutatePrefs } = useSWR<Record<string, string | null>>(
+    '/api/settings/preferences',
+    fetcher,
+    { revalidateOnFocus: false },
+  )
+  const savedBaseUrl = prefs?.['ollama.base_url'] || ''
+  const savedHeadersJson = prefs?.['ollama.custom_headers'] || ''
+  const [baseUrlInput, setBaseUrlInput] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
+  const [testing, setTesting] = useState(false)
+  const [testResult, setTestResult] = useState<{ ok: boolean; version?: string; model_count?: number; error?: string } | null>(null)
+
+  // Custom headers state
+  const [headers, setHeaders] = useState<Array<{ key: string; value: string }>>([])
+
+  // Sync inputs with saved values on first load
+  const [initialized, setInitialized] = useState(false)
+  useEffect(() => {
+    if (!prefs || initialized) return
+    setBaseUrlInput(prefs['ollama.base_url'] || '')
+    const headersRaw = prefs['ollama.custom_headers'] || ''
+    if (headersRaw) {
+      try {
+        const parsed = JSON.parse(headersRaw)
+        setHeaders(Object.entries(parsed).map(([key, value]) => ({ key, value: String(value) })))
+      } catch { /* ignore invalid JSON */ }
+    }
+    setInitialized(true)
+  }, [prefs, initialized])
+
+  function showMessage(text: string, type: 'success' | 'error') {
+    setMessage({ text, type })
+    setTimeout(() => setMessage(null), 3000)
+  }
+
+  function headersToJson(h: Array<{ key: string; value: string }>): string {
+    if (h.length === 0) return ''
+    const obj: Record<string, string> = {}
+    for (const { key, value } of h) { if (key) obj[key] = value }
+    return JSON.stringify(obj)
+  }
+
+  const handleSave = useCallback(async () => {
+    if (saving) return
+    setSaving(true)
+    try {
+      await apiPatch('/api/settings/preferences', {
+        'ollama.base_url': baseUrlInput || '',
+        'ollama.custom_headers': headersToJson(headers),
+      })
+      void mutatePrefs()
+      showMessage(t('ollama.baseUrlSaved'), 'success')
+    } catch (err: unknown) {
+      showMessage(err instanceof Error ? err.message : 'Save failed', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }, [saving, baseUrlInput, headers, mutatePrefs, t])
+
+  const handleTest = useCallback(async () => {
+    if (testing) return
+    setTesting(true)
+    setTestResult(null)
+    try {
+      const res = await fetcher('/api/settings/ollama/status') as { ok: boolean; version?: string; model_count?: number; error?: string }
+      setTestResult(res)
+    } catch {
+      setTestResult({ ok: false, error: 'Request failed' })
+    } finally {
+      setTesting(false)
+    }
+  }, [testing])
+
+  const removeHeader = useCallback((index: number) => {
+    setHeaders(prev => prev.filter((_, i) => i !== index))
+  }, [])
+
+  const currentHeadersJson = headersToJson(headers)
+  const hasChanges = baseUrlInput !== savedBaseUrl || currentHeadersJson !== (savedHeadersJson || '')
+
+  return (
+    <div className="p-3 rounded-lg bg-bg-card border border-border min-h-[3rem] space-y-2">
+      <div className="flex items-center gap-2">
+        <span className={`w-2 h-2 rounded-full shrink-0 ${testResult?.ok ? 'bg-success' : savedBaseUrl ? 'bg-warning' : 'bg-muted'}`} />
+        <span className="text-sm font-medium text-text select-none">{t('provider.ollama')}</span>
+      </div>
+
+      <FormField label={t('ollama.baseUrl')} hint={t('ollama.baseUrlDesc')} compact>
+        <Input
+          type="text"
+          value={baseUrlInput}
+          onChange={e => setBaseUrlInput(e.target.value)}
+          placeholder={t('ollama.baseUrlPlaceholder')}
+          className="py-1.5"
+        />
+      </FormField>
+
+      <div>
+        <div className="flex items-center gap-2 mb-1.5">
+          <span className="text-xs font-medium text-text select-none">{t('ollama.customHeaders')}</span>
+          <span className="text-[11px] text-muted select-none">{t('ollama.customHeadersDesc')}</span>
+        </div>
+
+        {headers.map((h, i) => (
+          <div key={i} className="flex items-center gap-1.5 mb-1">
+            <Input
+              type="text"
+              value={h.key}
+              onChange={e => setHeaders(prev => prev.map((item, j) => j === i ? { ...item, key: e.target.value } : item))}
+              placeholder={t('ollama.headerKey')}
+              className="w-[200px] py-1 text-xs"
+            />
+            <Input
+              type="text"
+              value={h.value}
+              onChange={e => setHeaders(prev => prev.map((item, j) => j === i ? { ...item, value: e.target.value } : item))}
+              placeholder={t('ollama.headerValue')}
+              className="flex-1 py-1 text-xs"
+            />
+            <button
+              type="button"
+              onClick={() => removeHeader(i)}
+              className="px-1.5 py-1 text-xs text-muted hover:text-error transition-colors select-none shrink-0"
+            >
+              ×
+            </button>
+          </div>
+        ))}
+
+        <button
+          type="button"
+          onClick={() => setHeaders(prev => [...prev, { key: '', value: '' }])}
+          className="px-2 py-1 text-xs rounded border border-border text-muted hover:text-text hover:bg-hover transition-colors select-none"
+        >
+          + {t('ollama.addHeader')}
+        </button>
+      </div>
+
+      <div className="flex items-center gap-2">
+        {hasChanges && (
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving}
+            className="px-3 py-1.5 text-xs font-medium rounded-lg bg-accent text-accent-text hover:opacity-90 transition-opacity disabled:opacity-50 select-none shrink-0"
+          >
+            {saving ? '...' : t('settings.save')}
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={handleTest}
+          disabled={testing}
+          className="px-3 py-1.5 text-xs rounded-lg border border-border text-muted hover:text-text hover:bg-hover transition-colors disabled:opacity-50 select-none"
+        >
+          {testing ? t('ollama.testing') : t('ollama.testConnection')}
+        </button>
+        {testResult && (
+          <span className={`text-xs ${testResult.ok ? 'text-accent' : 'text-error'}`}>
+            {testResult.ok
+              ? `${t('ollama.connected')} (v${testResult.version}, ${testResult.model_count} models)`
+              : `${t('ollama.connectionFailed')}: ${testResult.error}`}
+          </span>
+        )}
+      </div>
+
+      {message && (
+        <p className={`text-xs ${message.type === 'error' ? 'text-error' : 'text-accent'}`}>
+          {message.text}
+        </p>
+      )}
     </div>
   )
 }

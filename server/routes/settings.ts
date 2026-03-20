@@ -45,6 +45,8 @@ const PREF_KEYS = [
   'translate.provider',
   'translate.model',
   'translate.target_lang',
+  'ollama.base_url',
+  'ollama.custom_headers',
   'custom_themes',
 ] as const
 type PrefKey = typeof PREF_KEYS[number]
@@ -65,13 +67,15 @@ const PREF_ALLOWED: Record<PrefKey, string[] | null> = {
   'appearance.highlight_theme': null,
   'appearance.font_family': null,
   'appearance.list_layout': ['list', 'card', 'magazine', 'compact'],
-  'chat.provider': ['anthropic', 'gemini', 'openai', 'claude-code'],
+  'chat.provider': ['anthropic', 'gemini', 'openai', 'claude-code', 'ollama'],
   'chat.model': getAllModelValues(),
-  'summary.provider': ['anthropic', 'gemini', 'openai', 'claude-code'],
+  'summary.provider': ['anthropic', 'gemini', 'openai', 'claude-code', 'ollama'],
   'summary.model': getAllModelValues(),
-  'translate.provider': ['anthropic', 'gemini', 'openai', 'claude-code', 'google-translate', 'deepl'],
+  'translate.provider': ['anthropic', 'gemini', 'openai', 'claude-code', 'ollama', 'google-translate', 'deepl'],
   'translate.model': getAllModelValues(),
   'translate.target_lang': ['ja', 'en'],
+  'ollama.base_url': null,
+  'ollama.custom_headers': null,
   'custom_themes': null,
 }
 
@@ -86,8 +90,8 @@ function validateProviderModel(body: Record<string, unknown>): string | null {
     const model = body[modelKey] !== undefined ? String(body[modelKey]) : getSetting(modelKey)
     const provider = body[providerKey] !== undefined ? String(body[providerKey]) : getSetting(providerKey)
     if (!model || !provider) continue
-    // google-translate and deepl have no model selection
-    if (provider === 'google-translate' || provider === 'deepl') continue
+    // google-translate, deepl, and ollama have no static model list
+    if (provider === 'google-translate' || provider === 'deepl' || provider === 'ollama') continue
     // claude-code uses anthropic model IDs
     const effectiveProvider = provider === 'claude-code' ? 'anthropic' : provider
     const allowedModels = getModelValues(effectiveProvider)
@@ -173,6 +177,18 @@ export async function settingsRoutes(api: FastifyInstance): Promise<void> {
       }
       const allowed = PREF_ALLOWED[key]
       if (allowed && !allowed.includes(value)) {
+        // Skip static model list check when provider is ollama (dynamic models)
+        const modelKeyPair = PROVIDER_MODEL_PAIRS.find(p => p.modelKey === key)
+        if (modelKeyPair) {
+          const provider = body[modelKeyPair.providerKey] !== undefined
+            ? String(body[modelKeyPair.providerKey])
+            : getSetting(modelKeyPair.providerKey)
+          if (provider === 'ollama') {
+            upsertSetting(key, value)
+            updated = true
+            continue
+          }
+        }
         reply.status(400).send({ error: `Invalid value for ${key}` })
         return
       }
@@ -490,5 +506,56 @@ export async function settingsRoutes(api: FastifyInstance): Promise<void> {
 
   api.get('/api/settings/deepl/usage', async (_request, reply) => {
     reply.send(getDeeplMonthlyUsage())
+  })
+
+  // --- Ollama endpoints ---
+
+  async function ollamaFetch(path: string): Promise<Response> {
+    const { getOllamaBaseUrl, getOllamaCustomHeaders } = await import('../providers/llm/ollama.js')
+    const baseUrl = getOllamaBaseUrl().replace(/\/+$/, '')
+    const headers = getOllamaCustomHeaders()
+    return fetch(`${baseUrl}${path}`, { headers, signal: AbortSignal.timeout(5_000) })
+  }
+
+  api.get('/api/settings/ollama/models', async (_request, reply) => {
+    try {
+      const res = await ollamaFetch('/api/tags')
+      if (!res.ok) {
+        reply.send({ models: [] })
+        return
+      }
+      const data = await res.json() as { models?: Array<{ name: string; size: number; details?: { parameter_size?: string } }> }
+      const models = (data.models || []).map(m => ({
+        name: m.name,
+        size: m.size,
+        parameter_size: m.details?.parameter_size || '',
+      }))
+      reply.send({ models })
+    } catch {
+      reply.send({ models: [] })
+    }
+  })
+
+  api.get('/api/settings/ollama/status', async (_request, reply) => {
+    try {
+      const [versionRes, tagsRes] = await Promise.all([
+        ollamaFetch('/api/version'),
+        ollamaFetch('/api/tags'),
+      ])
+      if (!versionRes.ok || !tagsRes.ok) {
+        reply.send({ ok: false, error: `HTTP ${versionRes.status}` })
+        return
+      }
+      const versionData = await versionRes.json() as { version?: string }
+      const tagsData = await tagsRes.json() as { models?: unknown[] }
+      reply.send({
+        ok: true,
+        version: versionData.version || 'unknown',
+        model_count: tagsData.models?.length || 0,
+      })
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Connection failed'
+      reply.send({ ok: false, error: message })
+    }
   })
 }

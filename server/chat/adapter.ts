@@ -28,6 +28,11 @@ export async function runChatTurn(provider: string, params: ChatTurnParams): Pro
     const { runClaudeCodeTurn } = await import('./adapter-claude-code.js')
     return runClaudeCodeTurn(params)
   }
+  if (provider === 'ollama') {
+    const { runOpenAITurn } = await import('./adapter-openai.js')
+    const { getOllamaClient } = await import('../providers/llm/ollama.js')
+    return runOpenAITurn(params, getOllamaClient())
+  }
   if (provider === 'openai') {
     const { runOpenAITurn } = await import('./adapter-openai.js')
     return runOpenAITurn(params)
