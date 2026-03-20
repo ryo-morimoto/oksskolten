@@ -33,6 +33,7 @@ convert_to_ast() {
         > "$tmpdir/$scope/$name"
     ) &
   done
+  wait
 }
 
 # Run conftest for a scope if AST files exist.
@@ -66,10 +67,9 @@ simple_metadata() {
 
 # ── Phase 1: Convert to AST ─────────────────────────────────────────────────
 
-convert_to_ast "docs/spec"   "spec"   spec_metadata
-convert_to_ast "docs/guides" "guides" simple_metadata
-convert_to_ast "docs/adr"    "adr"    simple_metadata
-
+convert_to_ast "docs/spec"   "spec"   spec_metadata   &
+convert_to_ast "docs/guides" "guides" simple_metadata &
+convert_to_ast "docs/adr"    "adr"    simple_metadata &
 wait
 
 # ── Phase 2: Run conftest ───────────────────────────────────────────────────
