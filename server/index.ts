@@ -226,7 +226,7 @@ cronTasks.push(cron.schedule(RETENTION_SCHEDULE, () => {
 
   const readDays = Number(getSetting('retention.read_days'))
   const unreadDays = Number(getSetting('retention.unread_days'))
-  if (!readDays || !unreadDays) return
+  if (isNaN(readDays) || isNaN(unreadDays) || readDays < 1 || unreadDays < 1) return
 
   try {
     const { purged } = purgeExpiredArticles(readDays, unreadDays)

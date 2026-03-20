@@ -467,7 +467,7 @@ export async function settingsRoutes(api: FastifyInstance): Promise<void> {
   function getRetentionDays(): { readDays: number; unreadDays: number } | null {
     const readDays = Number(getSetting('retention.read_days'))
     const unreadDays = Number(getSetting('retention.unread_days'))
-    if (!readDays || !unreadDays) return null
+    if (isNaN(readDays) || isNaN(unreadDays) || readDays < 1 || unreadDays < 1) return null
     return { readDays, unreadDays }
   }
 
