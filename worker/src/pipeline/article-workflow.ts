@@ -5,6 +5,8 @@ import {
 } from 'cloudflare:workers'
 import { getContainer } from '@cloudflare/containers'
 import { parseRssXml } from '../lib/rss-parser'
+import { decomposeTrigrams } from '../lib/trigram'
+import { tokenizeText } from '../container/kuromoji'
 import {
   computeInterval,
   computeEmpiricalInterval,
@@ -13,7 +15,6 @@ import {
   sqliteFuture,
   DEFAULT_INTERVAL,
 } from '../lib/schedule'
-import type { TokenizeResponse } from '../container/kuromoji'
 import type { Env } from '../index'
 
 const USER_AGENT = 'Mozilla/5.0 (compatible; Oksskolten/1.0)'
@@ -306,25 +307,11 @@ export class ArticlePipelineWorkflow extends WorkflowEntrypoint<
             this.env.KUROMOJI_CONTAINER as any,
           )
 
-          // Tokenize title
-          const titleRes = await container.fetch(
-            new Request('http://container/tokenize', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ text: article.title }),
-            }),
+          const titleData = await tokenizeText(container, article.title)
+          const fullTextData = await tokenizeText(
+            container,
+            article.fullText,
           )
-          const titleData: TokenizeResponse = await titleRes.json()
-
-          // Tokenize full_text
-          const ftRes = await container.fetch(
-            new Request('http://container/tokenize', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ text: article.fullText }),
-            }),
-          )
-          const fullTextData: TokenizeResponse = await ftRes.json()
 
           await this.env.DB.prepare(
             `UPDATE articles
@@ -571,46 +558,3 @@ async function recordFeedError(
   }
 }
 
-/**
- * Decompose a term into character trigrams.
- * e.g. "東京都" → ["東京都"] (length 3 is itself a trigram)
- * e.g. "プログラミング" → ["プログ", "ログラ", "グラミ", "ラミン", "ミング"]
- */
-export function decomposeTrigrams(term: string): string[] {
-  const chars = [...term.normalize('NFC')] // handle multi-byte chars, normalize NFD→NFC
-  if (chars.length < 3) return [term]
-  const trigrams: string[] = []
-  for (let i = 0; i <= chars.length - 3; i++) {
-    trigrams.push(chars.slice(i, i + 3).join(''))
-  }
-  return trigrams
-}
-
-/**
- * Find correction candidates from trigram dictionary.
- * Returns terms ranked by trigram overlap with the query.
- */
-export async function findTrigramCandidates(
-  db: D1Database,
-  query: string,
-  limit = 3,
-): Promise<string[]> {
-  const trigrams = decomposeTrigrams(query)
-  if (trigrams.length === 0) return []
-
-  const placeholders = trigrams.map(() => '?').join(',')
-  const result = await db
-    .prepare(
-      `SELECT td.term, COUNT(*) as match_count
-       FROM term_trigrams tt
-       JOIN term_dictionary td ON td.id = tt.term_id
-       WHERE tt.trigram IN (${placeholders})
-       GROUP BY tt.term_id
-       ORDER BY match_count DESC, td.frequency DESC
-       LIMIT ?`,
-    )
-    .bind(...trigrams, limit)
-    .all<{ term: string; match_count: number }>()
-
-  return result.results.map((r) => r.term)
-}

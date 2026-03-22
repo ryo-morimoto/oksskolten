@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import type { AppContext } from '../index'
-import { findTrigramCandidates } from '../pipeline/article-workflow'
+import { findTrigramCandidates } from '../lib/trigram'
 
 export const searchRoutes = new Hono<AppContext>()
 

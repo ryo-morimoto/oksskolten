@@ -20,7 +20,7 @@ export interface TokenizeResponse {
 }
 
 export async function tokenizeText(
-  container: InstanceType<typeof Container>,
+  container: { fetch(req: Request): Promise<Response> },
   text: string,
 ): Promise<TokenizeResponse> {
   const res = await container.fetch(

@@ -1,4 +1,4 @@
-import { decomposeTrigrams } from '../../src/pipeline/article-workflow'
+import { decomposeTrigrams } from '../../src/lib/trigram'
 
 describe('decomposeTrigrams', () => {
   it('returns the term itself for 2-char strings', () => {
