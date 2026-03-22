@@ -360,14 +360,14 @@ export class ArticlePipelineWorkflow extends WorkflowEntrypoint<
       'build_trigram',
       {
         retries: { limit: 2, delay: '5 second', backoff: 'exponential' },
-        timeout: '30 seconds',
+        timeout: '2 minutes',
       },
       async () => {
         // Get recently tokenized articles' nouns via kuromoji
         const articles = await this.env.DB.prepare(
           `SELECT id, title_tokens, full_text_tokens FROM articles
            WHERE feed_id = ? AND title_tokens IS NOT NULL
-           ORDER BY id DESC LIMIT 50`,
+           ORDER BY id DESC LIMIT 20`,
         )
           .bind(feed.feedId)
           .all<{
