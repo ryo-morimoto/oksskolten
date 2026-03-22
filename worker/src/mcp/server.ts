@@ -209,6 +209,32 @@ export function createMcpServer(env: Env): McpServer {
 
   // ── Write tools ─────────────────────────────────────────────
 
+  server.registerTool('add_feed', {
+    description: 'Add a new RSS feed. Returns the created feed or an error if the URL already exists.',
+    inputSchema: {
+      url: z.string().url().describe('Feed site URL (e.g. https://example.com)'),
+      name: z.string().optional().describe('Display name (defaults to hostname)'),
+      rss_url: z.string().url().optional().describe('RSS/Atom feed URL if different from site URL'),
+      category_id: z.number().optional().describe('Category ID to assign'),
+    },
+    annotations: { readOnlyHint: false },
+  }, async ({ url, name, rss_url, category_id }) => {
+    const existing = await db
+      .prepare('SELECT id FROM feeds WHERE url = ?')
+      .bind(url)
+      .first()
+    if (existing) return error('Feed URL already exists')
+
+    const feedName = name || new URL(url).hostname
+    const feed = await db
+      .prepare(
+        'INSERT INTO feeds (name, url, rss_url, category_id) VALUES (?, ?, ?, ?) RETURNING *',
+      )
+      .bind(feedName, url, rss_url ?? null, category_id ?? null)
+      .first()
+    return json(feed)
+  })
+
   server.registerTool('mark_as_read', {
     description: 'Mark an article as read',
     inputSchema: { id: z.number().describe('Article ID') },
