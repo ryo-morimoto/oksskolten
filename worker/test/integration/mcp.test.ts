@@ -20,11 +20,12 @@ describe('MCP tools', () => {
     await setupTestDb()
   })
 
-  it('lists all 15 tools', async () => {
+  it('lists all 16 tools', async () => {
     const client = await createTestClient()
     const { tools } = await client.listTools()
     expect(tools.map((t) => t.name).sort()).toEqual([
       'add_feed',
+      'disable_feed',
       'get_article',
       'get_categories',
       'get_feed_insights',

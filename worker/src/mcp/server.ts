@@ -235,6 +235,25 @@ export function createMcpServer(env: Env): McpServer {
     return json(feed)
   })
 
+  server.registerTool('disable_feed', {
+    description: 'Disable or re-enable a feed. Disabled feeds stop fetching new articles but existing articles remain.',
+    inputSchema: {
+      id: z.number().describe('Feed ID'),
+      disabled: z.boolean().describe('true to disable, false to re-enable'),
+    },
+    annotations: { readOnlyHint: false, idempotentHint: true },
+  }, async ({ id, disabled }) => {
+    const sets = disabled
+      ? 'disabled = 1'
+      : 'disabled = 0, error_count = 0, last_error = NULL'
+    const result = await db
+      .prepare(`UPDATE feeds SET ${sets} WHERE id = ? RETURNING id, name, disabled`)
+      .bind(id)
+      .first()
+    if (!result) return error('Feed not found')
+    return json(result)
+  })
+
   server.registerTool('mark_as_read', {
     description: 'Mark an article as read',
     inputSchema: { id: z.number().describe('Article ID') },
