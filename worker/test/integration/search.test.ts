@@ -64,9 +64,13 @@ describe('GET /api/articles/search', () => {
 
     const res = await search('東京')
     expect(res.status).toBe(200)
-    const body = await res.json<{ articles: unknown[]; total: number }>()
+    const body = await res.json<{
+      articles: { rank: number }[]
+      total: number
+    }>()
     expect(body.total).toBe(1)
     expect(body.articles.length).toBe(1)
+    expect(typeof body.articles[0].rank).toBe('number')
   })
 
   it('excludes purged articles', async () => {

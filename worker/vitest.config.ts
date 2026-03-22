@@ -17,7 +17,7 @@ export default defineConfig(async () => {
       cloudflareTest({
         main: './src/index.ts',
         wrangler: {
-          configPath: './wrangler.toml',
+          configPath: './wrangler.test.toml',
         },
         miniflare: {
           bindings: {
@@ -28,6 +28,7 @@ export default defineConfig(async () => {
     ],
     test: {
       globals: true,
+      exclude: ['test/e2e/**', 'node_modules/**'],
     },
   }
 })

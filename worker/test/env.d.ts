@@ -6,6 +6,8 @@ declare global {
       DB: D1Database
       ARTICLE_PIPELINE: Workflow
       KUROMOJI_CONTAINER: DurableObjectNamespace
+      VECTORIZE: VectorizeIndex
+      AI: Ai
       ENVIRONMENT: string
       TEST_MIGRATIONS: D1Migration[]
     }

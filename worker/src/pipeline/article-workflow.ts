@@ -29,19 +29,23 @@ export interface ArticlePipelineParams {
   checkInterval: number | null
 }
 
-interface FetchRssResult {
-  skipped: boolean
-  items: Array<{
-    title: string
-    url: string
-    excerpt: string | null
-    published_at: string | null
-  }>
-  interval: number
-  contentHash: string
-  newEtag: string | null
-  newLastModified: string | null
-}
+type FetchRssResult =
+  | {
+      skipped: true
+    }
+  | {
+      skipped: false
+      items: Array<{
+        title: string
+        url: string
+        excerpt: string | null
+        published_at: string | null
+      }>
+      interval: number
+      contentHash: string
+      newEtag: string | null
+      newLastModified: string | null
+    }
 
 interface DedupResult {
   insertedCount: number
@@ -91,7 +95,7 @@ export class ArticlePipelineWorkflow extends WorkflowEntrypoint<
               feed.feedId,
             )
             .run()
-          return { skipped: true } as FetchRssResult
+          return { skipped: true }
         }
 
         // 304 Not Modified
@@ -102,7 +106,7 @@ export class ArticlePipelineWorkflow extends WorkflowEntrypoint<
           )
             .bind(sqliteFuture(interval), interval, feed.feedId)
             .run()
-          return { skipped: true } as FetchRssResult
+          return { skipped: true }
         }
 
         if (!res.ok) {
@@ -111,7 +115,7 @@ export class ArticlePipelineWorkflow extends WorkflowEntrypoint<
             feed.feedId,
             `HTTP ${res.status}`,
           )
-          return { skipped: true } as FetchRssResult
+          return { skipped: true }
         }
 
         const xml = await res.text()
@@ -143,7 +147,7 @@ export class ArticlePipelineWorkflow extends WorkflowEntrypoint<
               feed.feedId,
             )
             .run()
-          return { skipped: true } as FetchRssResult
+          return { skipped: true }
         }
 
         // Parse
@@ -162,12 +166,11 @@ export class ArticlePipelineWorkflow extends WorkflowEntrypoint<
           contentHash,
           newEtag: res.headers.get('etag'),
           newLastModified: res.headers.get('last-modified'),
-        } as FetchRssResult
+        }
       },
     )
 
-    if (fetchResult.skipped) return
-
+    if (!fetchResult.skipped) {
     // Step 2: dedup_and_save — INSERT OR IGNORE (url UNIQUE = idempotent)
     const dedupResult = await step.do(
       'dedup_and_save',
@@ -425,8 +428,11 @@ export class ArticlePipelineWorkflow extends WorkflowEntrypoint<
       },
     )
 
-    // Final: update feed metadata
+    } // end !fetchResult.skipped
+
+    // Final: update feed metadata (skipped fetch: no-op here — fetch_rss already updated DB)
     await step.do('update_feed_metadata', async () => {
+      if (fetchResult.skipped) return
       await this.env.DB.prepare(
         `UPDATE feeds
          SET next_check_at = ?, check_interval = ?,
@@ -444,6 +450,70 @@ export class ArticlePipelineWorkflow extends WorkflowEntrypoint<
         )
         .run()
     })
+
+    await embedArticles(step, this.env, feed.feedId)
+  }
+}
+
+/**
+ * Embed up to 20 unembedded articles for a feed (title + excerpt → Vectorize).
+ * Shared by full pipeline and skipped-fetch backfill paths.
+ */
+export async function embedArticles(
+  step: WorkflowStep,
+  env: Env,
+  feedId: number,
+): Promise<void> {
+  const toEmbed = await step.do('embed_query', async () => {
+    const result = await env.DB.prepare(
+      `SELECT id, title, excerpt FROM active_articles
+       WHERE feed_id = ? AND embedded_at IS NULL AND title IS NOT NULL
+       LIMIT 20`,
+    )
+      .bind(feedId)
+      .all<{ id: number; title: string; excerpt: string | null }>()
+    return result.results.map((a) => ({
+      id: a.id,
+      title: a.title,
+      excerpt: a.excerpt || '',
+    }))
+  })
+
+  for (const article of toEmbed) {
+    await step.do(
+      `embed_${article.id}`,
+      {
+        retries: {
+          limit: 2,
+          delay: '10 second',
+          backoff: 'exponential',
+        },
+        timeout: '2 minutes',
+      },
+      async () => {
+        const text = `${article.title} ${article.excerpt}`.trim()
+        const embedResult = await env.AI.run('@cf/baai/bge-m3', {
+          text: [text],
+        })
+        const values = embedResult.data[0] as number[]
+
+        await env.VECTORIZE.upsert([
+          {
+            id: String(article.id),
+            values,
+            metadata: { feed_id: feedId },
+          },
+        ])
+
+        await env.DB.prepare(
+          "UPDATE articles SET embedded_at = datetime('now') WHERE id = ? AND embedded_at IS NULL",
+        )
+          .bind(article.id)
+          .run()
+
+        return { articleId: article.id }
+      },
+    )
   }
 }
 

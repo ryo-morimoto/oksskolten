@@ -16,6 +16,8 @@ export type Env = {
   DB: D1Database
   ARTICLE_PIPELINE: Workflow
   KUROMOJI_CONTAINER: DurableObjectNamespace
+  VECTORIZE: VectorizeIndex
+  AI: Ai
   // STORAGE: R2Bucket   // future
   ENVIRONMENT: string
 }

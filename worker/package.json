@@ -11,6 +11,7 @@
     "deploy": "wrangler deploy",
     "pretest": "node scripts/bundle-defuddle.mjs",
     "test": "vitest run",
+    "test:e2e": "vitest run --config vitest.config.e2e.ts",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "d1:create": "wrangler d1 create oksskolten",

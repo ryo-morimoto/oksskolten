@@ -1,3 +1,5 @@
+# Test-only wrangler config: excludes AI and Vectorize bindings
+# (they require remote access and cause TLS errors in workerd sandbox)
 name = "oksskolten"
 main = "src/index.ts"
 compatibility_date = "2026-03-10"
@@ -11,13 +13,11 @@ binding = "DB"
 database_name = "oksskolten"
 database_id = "53d7ac03-5ae9-4800-a263-d0d98f983f11"
 
-# Workflow: article processing pipeline (replaces Queue)
 [[workflows]]
 name = "article-pipeline"
 binding = "ARTICLE_PIPELINE"
 class_name = "ArticlePipelineWorkflow"
 
-# Container: kuromoji tokenizer
 [[containers]]
 class_name = "KuromojiContainer"
 image = "./container/kuromoji/Dockerfile"
@@ -32,17 +32,5 @@ class_name = "KuromojiContainer"
 tag = "v1"
 new_sqlite_classes = ["KuromojiContainer"]
 
-[[vectorize]]
-binding = "VECTORIZE"
-index_name = "oksskolten-articles"
-
-[ai]
-binding = "AI"
-
-# Future: R2 bucket (image archival)
-# [[r2_buckets]]
-# binding = "STORAGE"
-# bucket_name = "oksskolten"
-
 [vars]
-ENVIRONMENT = "production"
+ENVIRONMENT = "test"

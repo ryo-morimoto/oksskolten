@@ -140,6 +140,16 @@ feedRoutes.delete('/feeds/:id', requireScope('write'), async (c) => {
     return c.json({ error: 'Cannot delete the clip feed' }, 403)
   }
 
+  const articleIds = await c.env.DB.prepare(
+    'SELECT id FROM articles WHERE feed_id = ?',
+  )
+    .bind(id)
+    .all<{ id: number }>()
+  const vecIds = articleIds.results.map((r) => String(r.id))
+  if (vecIds.length > 0) {
+    await c.env.VECTORIZE.deleteByIds(vecIds)
+  }
+
   await c.env.DB.prepare('DELETE FROM feeds WHERE id = ?').bind(id).run()
   return c.body(null, 204)
 })
