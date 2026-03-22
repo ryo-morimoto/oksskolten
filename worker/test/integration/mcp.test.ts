@@ -20,16 +20,18 @@ describe('MCP tools', () => {
     await setupTestDb()
   })
 
-  it('lists all 12 tools', async () => {
+  it('lists all 14 tools', async () => {
     const client = await createTestClient()
     const { tools } = await client.listTools()
     expect(tools.map((t) => t.name).sort()).toEqual([
       'get_article',
       'get_categories',
+      'get_feed_insights',
       'get_feeds',
       'get_reading_stats',
       'get_recent_activity',
       'get_similar_articles',
+      'get_triage',
       'get_user_preferences',
       'list_articles',
       'mark_as_read',
@@ -106,5 +108,24 @@ describe('MCP tools', () => {
     const client = await createTestClient()
     const result = await client.callTool({ name: 'get_article', arguments: { id: 99999 } })
     expect(result.isError).toBe(true)
+  })
+
+  it('get_triage returns triaged articles', async () => {
+    const feed = await seedFeed() as { id: number }
+    await seedArticle(feed.id, { title: 'Triage Test' })
+    const client = await createTestClient()
+    const result = await client.callTool({ name: 'get_triage', arguments: { limit: 5 } })
+    const data = JSON.parse((result.content as Array<{ text: string }>)[0].text)
+    expect(data.articles).toHaveLength(1)
+    expect(data.articles[0].triage_score).toBeGreaterThan(0)
+  })
+
+  it('get_feed_insights returns feed data', async () => {
+    const feed = await seedFeed() as { id: number }
+    await seedArticle(feed.id)
+    const client = await createTestClient()
+    const result = await client.callTool({ name: 'get_feed_insights', arguments: {} })
+    const data = JSON.parse((result.content as Array<{ text: string }>)[0].text)
+    expect(data.feeds.length).toBeGreaterThan(0)
   })
 })

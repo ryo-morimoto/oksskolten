@@ -2,6 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
 import type { Env } from '../index'
 import { hybridSearch, extractEmbedding } from '../lib/search'
+import { getTriagedArticles, computeFeedInterests } from '../lib/triage'
 
 type ToolResult = { content: Array<{ type: 'text'; text: string }>; isError?: boolean }
 
@@ -328,6 +329,51 @@ export function createMcpServer(env: Env): McpServer {
       .filter(Boolean)
 
     return json({ similar })
+  })
+
+  // ── Triage tools ──────────────────────────────────────────
+
+  server.registerTool('get_triage', {
+    description: 'Get triaged articles ranked by structural quality, feed interest, and recency. Returns the best articles to read right now.',
+    inputSchema: {
+      feed_id: z.number().optional().describe('Filter to a specific feed'),
+      category_id: z.number().optional().describe('Filter to a specific category'),
+      min_quality: z.number().min(0).max(1).optional().describe('Minimum quality score (0-1)'),
+      unread_only: z.boolean().optional().describe('Only unread articles (default: true)'),
+      limit: z.number().min(1).max(50).optional().describe('Number of results (default: 10)'),
+      offset: z.number().min(0).optional().describe('Pagination offset'),
+    },
+    annotations: { readOnlyHint: true },
+  }, async (params) => {
+    const result = await getTriagedArticles(db, {
+      feed_id: params.feed_id,
+      category_id: params.category_id,
+      min_quality: params.min_quality,
+      unread_only: params.unread_only,
+      limit: params.limit ?? 10,
+      offset: params.offset ?? 0,
+    })
+    return json(result)
+  })
+
+  server.registerTool('get_feed_insights', {
+    description: 'Get per-feed interest scores and quality distribution. Shows which feeds produce high-quality content the user engages with.',
+    annotations: { readOnlyHint: true },
+  }, async () => {
+    const interests = await computeFeedInterests(db)
+    const qualityStats = await db
+      .prepare(
+        `SELECT feed_id,
+                AVG(quality_score) AS avg_quality,
+                COUNT(CASE WHEN quality_score >= 0.6 THEN 1 END) AS high_quality_count,
+                COUNT(*) AS total
+         FROM active_articles
+         WHERE quality_score IS NOT NULL
+         GROUP BY feed_id`,
+      )
+      .all()
+
+    return json({ feeds: interests, quality_stats: qualityStats.results })
   })
 
   return server

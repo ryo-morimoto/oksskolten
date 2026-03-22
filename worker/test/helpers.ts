@@ -77,6 +77,7 @@ export async function seedArticle(
     full_text: string
     published_at: string
     purged_at: string | null
+    quality_score: number | null
   }> = {},
 ) {
   const article = {
@@ -85,11 +86,12 @@ export async function seedArticle(
     full_text: '# Test\n\nThis is a test article.',
     published_at: new Date().toISOString(),
     purged_at: null,
+    quality_score: null as number | null,
     ...overrides,
   }
   const result = await env.DB.prepare(
-    `INSERT INTO articles (feed_id, title, url, full_text, published_at, purged_at)
-     VALUES (?, ?, ?, ?, ?, ?) RETURNING *`,
+    `INSERT INTO articles (feed_id, title, url, full_text, published_at, purged_at, quality_score)
+     VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING *`,
   )
     .bind(
       feedId,
@@ -98,6 +100,7 @@ export async function seedArticle(
       article.full_text,
       article.published_at,
       article.purged_at,
+      article.quality_score,
     )
     .first()
   return result!

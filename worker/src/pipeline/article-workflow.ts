@@ -6,6 +6,7 @@ import {
 import { getContainer } from '@cloudflare/containers'
 import { parseRssXml } from '../lib/rss-parser'
 import { decomposeTrigrams } from '../lib/trigram'
+import { computeQualityScore } from '../lib/quality'
 import { tokenizeText } from '../container/kuromoji'
 import {
   computeInterval,
@@ -329,6 +330,30 @@ export class ArticlePipelineWorkflow extends WorkflowEntrypoint<
         },
       )
     }
+
+    // Step 4.5: compute_quality — structural quality score (no external calls)
+    await step.do('compute_quality', { timeout: '30 seconds' }, async () => {
+      const rows = await this.env.DB.prepare(
+        `SELECT id, full_text, full_text_tokens FROM articles
+         WHERE feed_id = ? AND quality_score IS NULL AND full_text IS NOT NULL
+         ORDER BY id DESC LIMIT 50`,
+      )
+        .bind(feed.feedId)
+        .all<{ id: number; full_text: string; full_text_tokens: string | null }>()
+
+      for (const row of rows.results) {
+        const tokenCount = row.full_text_tokens
+          ? row.full_text_tokens.split(/\s+/).length
+          : undefined
+        const score = computeQualityScore({ markdown: row.full_text, tokenCount })
+        await this.env.DB.prepare(
+          'UPDATE articles SET quality_score = ? WHERE id = ? AND quality_score IS NULL',
+        )
+          .bind(score, row.id)
+          .run()
+      }
+      return { scoredCount: rows.results.length }
+    })
 
     // Step 5: build_trigram — INSERT OR IGNORE (UNIQUE = idempotent)
     await step.do(
