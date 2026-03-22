@@ -598,10 +598,10 @@ worker/
 
 | Phase | Status | 実績 |
 |---|---|---|
-| **P0** | **完了・本番稼働** (2026-03-22) | 14ファイル / 99テスト / 3.5秒。本番デプロイ済み。3フィード / 762記事を自動取得 |
-| P1 | 未着手 | Container (kuromoji) + D1 FTS5 + trigram辞書 |
-| P2 | 未着手 | Vectorize + PLaMo + RRF merge |
-| P3 | 未着手 | MCP 14ツール (Streamable HTTP) |
+| **P0** | **完了** (2026-03-22) | 14ファイル / 99テスト / 3.5秒。本番デプロイ済み。3フィード / 762記事を自動取得 |
+| **P1** | **完了** (2026-03-22) | Container (kuromoji) + D1 FTS5 + trigram辞書 + Workflows移行 |
+| **P2** | **完了** (2026-03-22) | Vectorize (bge-m3) + RRF merge + E2Eテスト |
+| **P3** | **完了** (2026-03-22) | MCP 12ツール (Streamable HTTP) + OAuth 2.1 (GitHub) + @hono/mcp + @cloudflare/workers-oauth-provider |
 | P4 | 未着手 | user_context API + AI自動トリアージ |
 | P5 | 未着手 | フロントエンド (Pages + Hono) |
 
