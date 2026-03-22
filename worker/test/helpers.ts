@@ -1,7 +1,15 @@
 import { env } from 'cloudflare:workers'
 import { applyD1Migrations } from 'cloudflare:test'
 
-const DATA_TABLES = ['articles', 'feeds', 'categories', 'settings', 'api_keys']
+const DATA_TABLES = [
+  'articles',
+  'feeds',
+  'categories',
+  'settings',
+  'api_keys',
+  'term_trigrams',
+  'term_dictionary',
+]
 
 /**
  * Apply migrations (idempotent) and clear all data tables.
@@ -9,6 +17,14 @@ const DATA_TABLES = ['articles', 'feeds', 'categories', 'settings', 'api_keys']
  */
 export async function setupTestDb() {
   await applyD1Migrations(env.DB, env.TEST_MIGRATIONS)
+  // Rebuild FTS index before clearing data (prevents SQLITE_CORRUPT from stale FTS state)
+  try {
+    await env.DB.prepare(
+      "INSERT INTO articles_fts(articles_fts) VALUES ('rebuild')",
+    ).run()
+  } catch {
+    // FTS table may not exist yet on first run
+  }
   // Clear data in reverse-dependency order (articles before feeds)
   await env.DB.batch(
     DATA_TABLES.map((t) => env.DB.prepare(`DELETE FROM ${t}`)),

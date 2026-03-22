@@ -18,6 +18,7 @@
     "d1:migrate:remote": "wrangler d1 migrations apply oksskolten --remote"
   },
   "dependencies": {
+    "@cloudflare/containers": "^0.1.1",
     "defuddle": "^0.14.0",
     "fast-xml-parser": "^5.5.8",
     "feedsmith": "^2.9.1",

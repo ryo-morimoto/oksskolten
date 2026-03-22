@@ -11,19 +11,26 @@ binding = "DB"
 database_name = "oksskolten"
 database_id = "53d7ac03-5ae9-4800-a263-d0d98f983f11"
 
-[[queues.producers]]
-binding = "FEED_QUEUE"
-queue = "oksskolten-feeds"
+# Workflow: article processing pipeline (replaces Queue)
+[[workflows]]
+name = "article-pipeline"
+binding = "ARTICLE_PIPELINE"
+class_name = "ArticlePipelineWorkflow"
 
-[[queues.consumers]]
-queue = "oksskolten-feeds"
-max_batch_size = 5
-max_batch_timeout = 30
+# Container: kuromoji tokenizer
+[[containers]]
+class_name = "KuromojiContainer"
+image = "./container/kuromoji/Dockerfile"
+max_instances = 1
+instance_type = "basic"
 
-# P1: INDEX_QUEUE (kuromoji + FTS5 + Vectorize)
-# [[queues.producers]]
-# binding = "INDEX_QUEUE"
-# queue = "oksskolten-index"
+[[durable_objects.bindings]]
+name = "KUROMOJI_CONTAINER"
+class_name = "KuromojiContainer"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["KuromojiContainer"]
 
 # Future: R2 bucket (image archival)
 # [[r2_buckets]]

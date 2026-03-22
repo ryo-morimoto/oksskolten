@@ -1,5 +1,6 @@
 ---
-status: "accepted"
+status: "deprecated"
+superseded-by: ADR-0009 (workflows-migration)
 date: 2026-03-22
 decision-makers: ryo-morimoto
 ---

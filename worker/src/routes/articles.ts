@@ -53,7 +53,7 @@ articleRoutes.get('/articles', async (c) => {
   })
 })
 
-articleRoutes.get('/articles/:id', async (c) => {
+articleRoutes.get('/articles/:id{[0-9]+}', async (c) => {
   const id = Number(c.req.param('id'))
   if (isNaN(id)) return c.json({ error: 'Invalid id' }, 400)
 
@@ -68,7 +68,7 @@ articleRoutes.get('/articles/:id', async (c) => {
   return c.json(article)
 })
 
-articleRoutes.patch('/articles/:id/seen', requireScope('write'), async (c) => {
+articleRoutes.patch('/articles/:id{[0-9]+}/seen', requireScope('write'), async (c) => {
   const id = Number(c.req.param('id'))
   if (isNaN(id)) return c.json({ error: 'Invalid id' }, 400)
 
@@ -83,7 +83,7 @@ articleRoutes.patch('/articles/:id/seen', requireScope('write'), async (c) => {
   return c.json(result)
 })
 
-articleRoutes.patch('/articles/:id/bookmark', requireScope('write'), async (c) => {
+articleRoutes.patch('/articles/:id{[0-9]+}/bookmark', requireScope('write'), async (c) => {
   const id = Number(c.req.param('id'))
   if (isNaN(id)) return c.json({ error: 'Invalid id' }, 400)
 
@@ -98,7 +98,7 @@ articleRoutes.patch('/articles/:id/bookmark', requireScope('write'), async (c) =
   return c.json(result)
 })
 
-articleRoutes.patch('/articles/:id/like', requireScope('write'), async (c) => {
+articleRoutes.patch('/articles/:id{[0-9]+}/like', requireScope('write'), async (c) => {
   const id = Number(c.req.param('id'))
   if (isNaN(id)) return c.json({ error: 'Invalid id' }, 400)
 
@@ -113,7 +113,7 @@ articleRoutes.patch('/articles/:id/like', requireScope('write'), async (c) => {
   return c.json(result)
 })
 
-articleRoutes.post('/articles/:id/read', requireScope('write'), async (c) => {
+articleRoutes.post('/articles/:id{[0-9]+}/read', requireScope('write'), async (c) => {
   const id = Number(c.req.param('id'))
   if (isNaN(id)) return c.json({ error: 'Invalid id' }, 400)
 

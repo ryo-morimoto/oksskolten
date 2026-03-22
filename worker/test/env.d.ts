@@ -4,7 +4,8 @@ declare global {
   namespace Cloudflare {
     interface Env {
       DB: D1Database
-      FEED_QUEUE: Queue
+      ARTICLE_PIPELINE: Workflow
+      KUROMOJI_CONTAINER: DurableObjectNamespace
       ENVIRONMENT: string
       TEST_MIGRATIONS: D1Migration[]
     }
