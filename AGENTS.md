@@ -1,13 +1,23 @@
 # Oksskolten
 
-AI-native RSS reader. Fork of [babarot/oksskolten](https://github.com/babarot/oksskolten), rebuilt on Cloudflare.
+AI-native RSS reader. [babarot/oksskolten](https://github.com/babarot/oksskolten) の Fork。
+
+## このリポジトリの目的
+
+Fork元を Cloudflare 上で展開・運用できるようにすること。Cloudflare のプリミティブ（D1, Workers, Workflows, Containers, Vectorize, Cron Triggers）で最適に動作するよう、代替実装や機能追加を行う。
+
+## ディレクトリと所有者
+
+| ディレクトリ | 所有者 | 説明 |
+|---|---|---|
+| `worker/` | **このリポジトリ** | Cloudflare Workers 版の実装（本番稼働中） |
+| `server/` | Fork元 | Node.js/Fastify 版（参照用、最終的に削除予定） |
+| `client/` | Fork元 | フロントエンド（参照用） |
+| `docs/decisions/` | **このリポジトリ** | CF版の ADR・設計判断。MADR 4.0 形式 |
+| `docs/adr/` | Fork元 | Fork元由来の ADR（001, 002）。ここには追加しない |
+| `docs/spec/` | Fork元 | Fork元の機能仕様 |
 
 ## Architecture
-
-Two codebases coexist:
-
-- `server/` — Fork元のNode.js/Fastify版（参照用、最終的に削除予定）
-- `worker/` — Cloudflare Workers版（本番稼働中）
 
 Worker版は Hono + D1 + Workflows + Containers + Cron Triggers で構成。`wrangler deploy` 一発でデプロイ。
 

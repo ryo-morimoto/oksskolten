@@ -20,6 +20,8 @@
   },
   "dependencies": {
     "@cloudflare/containers": "^0.1.1",
+    "@hono/mcp": "npm:@jsr/hono__mcp@^0.2.0",
+    "@modelcontextprotocol/sdk": "^1.27.1",
     "defuddle": "^0.14.0",
     "fast-xml-parser": "^5.5.8",
     "feedsmith": "^2.9.1",
