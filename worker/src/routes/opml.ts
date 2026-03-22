@@ -1,7 +1,6 @@
 import { Hono } from 'hono'
 import { XMLParser } from 'fast-xml-parser'
 import type { AppContext } from '../index'
-import { requireScope } from '../auth/bearer'
 
 export const opmlRoutes = new Hono<AppContext>()
 
@@ -67,7 +66,7 @@ opmlRoutes.get('/opml', async (c) => {
 
 // --- OPML Import ---
 
-opmlRoutes.post('/opml', requireScope('write'), async (c) => {
+opmlRoutes.post('/opml', async (c) => {
   const body = await c.req.text()
   if (!body) return c.json({ error: 'No OPML data' }, 400)
 

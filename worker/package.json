@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@cloudflare/containers": "^0.1.1",
+    "@cloudflare/workers-oauth-provider": "^0.3.0",
     "@hono/mcp": "npm:@jsr/hono__mcp@^0.2.0",
     "@modelcontextprotocol/sdk": "^1.27.1",
     "defuddle": "^0.14.0",

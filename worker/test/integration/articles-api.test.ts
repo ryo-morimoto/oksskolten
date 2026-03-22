@@ -1,16 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { exports, env } from 'cloudflare:workers'
-import { setupTestDb, seedApiKey, seedFeed, seedArticle } from '../helpers'
-
-let apiKey: string
+import { env } from 'cloudflare:workers'
+import { setupTestDb, fetchApi, seedFeed, seedArticle } from '../helpers'
 
 const api = (path: string, init?: RequestInit) =>
-  exports.default.fetch(
-    new Request(`https://test.host/api${path}`, {
-      ...init,
-      headers: { Authorization: `Bearer ${apiKey}`, ...init?.headers },
-    }),
-  )
+  fetchApi(`/api${path}`, init)
 
 const jsonApi = (path: string, method: string, body: unknown) =>
   api(path, {
@@ -24,7 +17,6 @@ describe('Article API', () => {
 
   beforeEach(async () => {
     await setupTestDb()
-    apiKey = await seedApiKey()
     const feed = await seedFeed()
     feedId = feed.id as number
   })

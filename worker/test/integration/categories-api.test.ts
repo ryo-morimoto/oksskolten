@@ -1,19 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { exports, env } from 'cloudflare:workers'
-import { setupTestDb, seedApiKey } from '../helpers'
-
-let apiKey: string
+import { env } from 'cloudflare:workers'
+import { setupTestDb, fetchApi } from '../helpers'
 
 const api = (path: string, init?: RequestInit) =>
-  exports.default.fetch(
-    new Request(`https://test.host/api${path}`, {
-      ...init,
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        ...init?.headers,
-      },
-    }),
-  )
+  fetchApi(`/api${path}`, init)
 
 const jsonApi = (path: string, method: string, body: unknown) =>
   api(path, {
@@ -25,7 +15,6 @@ const jsonApi = (path: string, method: string, body: unknown) =>
 describe('Category CRUD API', () => {
   beforeEach(async () => {
     await setupTestDb()
-    apiKey = await seedApiKey()
   })
 
   describe('GET /api/categories', () => {

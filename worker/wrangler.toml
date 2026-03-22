@@ -39,6 +39,11 @@ index_name = "oksskolten-articles"
 [ai]
 binding = "AI"
 
+# OAuth: KV for token/client storage (used by @cloudflare/workers-oauth-provider)
+[[kv_namespaces]]
+binding = "OAUTH_KV"
+id = "904d9fafb8374e308b9c7cc9f55f3a93"
+
 # Future: R2 bucket (image archival)
 # [[r2_buckets]]
 # binding = "STORAGE"

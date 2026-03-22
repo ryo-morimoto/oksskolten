@@ -1,18 +1,21 @@
+import { OAuthProvider, type OAuthHelpers } from '@cloudflare/workers-oauth-provider'
 import { Hono } from 'hono'
-import { StreamableHTTPTransport } from '@hono/mcp'
 import { healthRoute } from './routes/health'
 import { feedRoutes } from './routes/feeds'
 import { categoryRoutes } from './routes/categories'
 import { articleRoutes } from './routes/articles'
 import { opmlRoutes } from './routes/opml'
 import { searchRoutes } from './routes/search'
-import { bearerAuth } from './auth/bearer'
+import { handleAuthorize, handleCallback } from './auth/github'
 import { startFeedWorkflows } from './pipeline/fetch-feeds'
-import { createMcpServer } from './mcp/server'
+import { McpApiHandler } from './mcp/handler'
 
 // Re-export Workflow and Container classes (required by wrangler)
 export { ArticlePipelineWorkflow } from './pipeline/article-workflow'
 export { KuromojiContainer } from './container/kuromoji'
+
+// Re-export MCP API handler (OAuthProvider references by class)
+export { McpApiHandler } from './mcp/handler'
 
 export type Env = {
   DB: D1Database
@@ -20,46 +23,75 @@ export type Env = {
   KUROMOJI_CONTAINER: DurableObjectNamespace
   VECTORIZE: VectorizeIndex
   AI: Ai
+  OAUTH_PROVIDER: OAuthHelpers
+  OAUTH_KV: KVNamespace
+  GITHUB_CLIENT_ID: string
+  GITHUB_CLIENT_SECRET: string
+  GITHUB_ALLOWED_USERNAME: string
   // STORAGE: R2Bucket   // future
   ENVIRONMENT: string
 }
 
 export type AppContext = { Bindings: Env }
 
-const app = new Hono<AppContext>()
+// ── API app factory ──────────────────────────────────────────
+// Routes declare auth is required via the guard parameter.
+// Production: OAuthProvider validates externally → pass-through guard.
+// Tests: inject pass-through directly.
+import type { MiddlewareHandler } from 'hono'
 
-// Public routes (no auth)
-app.route('/api', healthRoute)
+export function createApiApp(guard: MiddlewareHandler<AppContext>) {
+  const app = new Hono<AppContext>()
 
-// Protected routes (bearer auth)
-const protectedApi = new Hono<AppContext>()
-protectedApi.use(bearerAuth())
-protectedApi.route('/', feedRoutes)
-protectedApi.route('/', categoryRoutes)
-protectedApi.route('/', searchRoutes)
-protectedApi.route('/', articleRoutes)  // :id{[0-9]+} prevents matching /articles/search
-protectedApi.route('/', opmlRoutes)
-app.route('/api', protectedApi)
+  // Public
+  app.route('/api', healthRoute)
 
-// MCP Streamable HTTP endpoint (bearer auth protected)
-const mcpApp = new Hono<AppContext>()
-mcpApp.use(bearerAuth())
-mcpApp.all('/', async (c) => {
-  const mcpServer = createMcpServer(c.env)
-  const transport = new StreamableHTTPTransport({ enableJsonResponse: true })
-  await mcpServer.connect(transport)
-  return transport.handleRequest(c as never)
-})
-app.route('/mcp', mcpApp)
+  // Protected
+  const protected_ = new Hono<AppContext>()
+  protected_.use('/*', guard)
+  protected_.route('/', feedRoutes)
+  protected_.route('/', categoryRoutes)
+  protected_.route('/', searchRoutes)
+  protected_.route('/', articleRoutes)
+  protected_.route('/', opmlRoutes)
+  app.route('/api', protected_)
 
-export default {
-  fetch: app.fetch,
-
-  async scheduled(
-    _controller: ScheduledController,
-    env: Env,
-    _ctx: ExecutionContext,
-  ) {
-    await startFeedWorkflows(env)
-  },
+  return app
 }
+
+// OAuthProvider already validates tokens before reaching this handler.
+const authenticated: MiddlewareHandler<AppContext> = async (_, next) => next()
+const apiApp = createApiApp(authenticated)
+
+// ── OAuthProvider wraps the Worker ───────────────────────────
+export default new OAuthProvider({
+  apiHandlers: {
+    '/mcp': McpApiHandler,
+    '/api/': {
+      async fetch(request: Request, env: Env) {
+        return apiApp.fetch(request, env)
+      },
+    },
+  },
+  defaultHandler: {
+    async fetch(request: Request, env: Env) {
+      const url = new URL(request.url)
+      if (url.pathname === '/authorize') return handleAuthorize(request, env)
+      if (url.pathname === '/callback') return handleCallback(request, env)
+      return new Response('Not found', { status: 404 })
+    },
+    async scheduled(
+      _controller: ScheduledController,
+      env: Env,
+      _ctx: ExecutionContext,
+    ) {
+      await startFeedWorkflows(env)
+    },
+  },
+  authorizeEndpoint: '/authorize',
+  tokenEndpoint: '/token',
+  clientRegistrationEndpoint: '/register',
+  scopesSupported: ['read', 'write'],
+  accessTokenTTL: 86400,     // 24 hours
+  refreshTokenTTL: 2592000,  // 30 days
+})

@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import type { AppContext } from '../index'
-import { requireScope } from '../auth/bearer'
+
 
 export const categoryRoutes = new Hono<AppContext>()
 
@@ -11,7 +11,7 @@ categoryRoutes.get('/categories', async (c) => {
   return c.json({ categories: result.results })
 })
 
-categoryRoutes.post('/categories', requireScope('write'), async (c) => {
+categoryRoutes.post('/categories', async (c) => {
   const body = await c.req.json<{ name?: string }>()
   const name = body.name?.trim()
   if (!name) {
@@ -31,7 +31,7 @@ categoryRoutes.post('/categories', requireScope('write'), async (c) => {
   return c.json(created, 201)
 })
 
-categoryRoutes.patch('/categories/:id', requireScope('write'), async (c) => {
+categoryRoutes.patch('/categories/:id', async (c) => {
   const id = Number(c.req.param('id'))
   if (isNaN(id)) return c.json({ error: 'Invalid id' }, 400)
 
@@ -82,7 +82,7 @@ categoryRoutes.patch('/categories/:id', requireScope('write'), async (c) => {
   return c.json(updated)
 })
 
-categoryRoutes.delete('/categories/:id', requireScope('write'), async (c) => {
+categoryRoutes.delete('/categories/:id', async (c) => {
   const id = Number(c.req.param('id'))
   if (isNaN(id)) return c.json({ error: 'Invalid id' }, 400)
 

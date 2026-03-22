@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { exports } from 'cloudflare:workers'
-import { setupTestDb } from '../helpers'
+import { setupTestDb, fetchApi } from '../helpers'
 
 describe('GET /api/health', () => {
   beforeEach(async () => {
@@ -8,7 +7,7 @@ describe('GET /api/health', () => {
   })
 
   it('returns ok: true when D1 is accessible', async () => {
-    const res = await exports.default.fetch(new Request('https://test.host/api/health'))
+    const res = await fetchApi('/api/health')
     expect(res.status).toBe(200)
 
     const body = await res.json<{ ok: boolean; version: string }>()

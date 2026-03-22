@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import type { AppContext } from '../index'
-import { requireScope } from '../auth/bearer'
+
 
 export const articleRoutes = new Hono<AppContext>()
 
@@ -68,7 +68,7 @@ articleRoutes.get('/articles/:id{[0-9]+}', async (c) => {
   return c.json(article)
 })
 
-articleRoutes.patch('/articles/:id{[0-9]+}/seen', requireScope('write'), async (c) => {
+articleRoutes.patch('/articles/:id{[0-9]+}/seen', async (c) => {
   const id = Number(c.req.param('id'))
   if (isNaN(id)) return c.json({ error: 'Invalid id' }, 400)
 
@@ -83,7 +83,7 @@ articleRoutes.patch('/articles/:id{[0-9]+}/seen', requireScope('write'), async (
   return c.json(result)
 })
 
-articleRoutes.patch('/articles/:id{[0-9]+}/bookmark', requireScope('write'), async (c) => {
+articleRoutes.patch('/articles/:id{[0-9]+}/bookmark', async (c) => {
   const id = Number(c.req.param('id'))
   if (isNaN(id)) return c.json({ error: 'Invalid id' }, 400)
 
@@ -98,7 +98,7 @@ articleRoutes.patch('/articles/:id{[0-9]+}/bookmark', requireScope('write'), asy
   return c.json(result)
 })
 
-articleRoutes.patch('/articles/:id{[0-9]+}/like', requireScope('write'), async (c) => {
+articleRoutes.patch('/articles/:id{[0-9]+}/like', async (c) => {
   const id = Number(c.req.param('id'))
   if (isNaN(id)) return c.json({ error: 'Invalid id' }, 400)
 
@@ -113,7 +113,7 @@ articleRoutes.patch('/articles/:id{[0-9]+}/like', requireScope('write'), async (
   return c.json(result)
 })
 
-articleRoutes.post('/articles/:id{[0-9]+}/read', requireScope('write'), async (c) => {
+articleRoutes.post('/articles/:id{[0-9]+}/read', async (c) => {
   const id = Number(c.req.param('id'))
   if (isNaN(id)) return c.json({ error: 'Invalid id' }, 400)
 

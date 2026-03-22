@@ -32,5 +32,13 @@ class_name = "KuromojiContainer"
 tag = "v1"
 new_sqlite_classes = ["KuromojiContainer"]
 
+# OAuth KV (in-memory for tests via Miniflare)
+[[kv_namespaces]]
+binding = "OAUTH_KV"
+id = "test-oauth-kv"
+
 [vars]
 ENVIRONMENT = "test"
+GITHUB_CLIENT_ID = "test"
+GITHUB_CLIENT_SECRET = "test"
+GITHUB_ALLOWED_USERNAME = "test-user"

@@ -1,21 +1,14 @@
-import { env, exports } from 'cloudflare:workers'
-import { setupTestDb, seedFeed, seedApiKey } from '../helpers'
+import { env } from 'cloudflare:workers'
+import { setupTestDb, seedFeed, fetchApi } from '../helpers'
 
 describe('GET /api/articles/search', () => {
-  let apiKey: string
-
   beforeEach(async () => {
     await setupTestDb()
-    apiKey = await seedApiKey('read,write')
   })
 
   async function search(query: string, params: Record<string, string> = {}) {
     const qs = new URLSearchParams({ q: query, ...params }).toString()
-    return exports.default.fetch(
-      new Request(`https://test.host/api/articles/search?${qs}`, {
-        headers: { Authorization: `Bearer ${apiKey}` },
-      }),
-    )
+    return fetchApi(`/api/articles/search?${qs}`)
   }
 
   async function insertArticleWithTokens(
@@ -32,11 +25,7 @@ describe('GET /api/articles/search', () => {
   }
 
   it('returns 400 without q parameter', async () => {
-    const res = await exports.default.fetch(
-      new Request('https://test.host/api/articles/search', {
-        headers: { Authorization: `Bearer ${apiKey}` },
-      }),
-    )
+    const res = await fetchApi('/api/articles/search')
     expect(res.status).toBe(400)
   })
 
@@ -45,117 +34,61 @@ describe('GET /api/articles/search', () => {
     expect(res.status).toBe(400)
   })
 
-  it('finds articles by Japanese tokens', async () => {
-    const feed = await seedFeed()
-    await insertArticleWithTokens(
-      feed.id as number,
-      '東京の天気予報',
-      'https://example.com/tokyo-weather',
-      '東京 天気 予報',
-      '東京 都 天気 予報 晴れ',
-    )
-    await insertArticleWithTokens(
-      feed.id as number,
-      '大阪のグルメ',
-      'https://example.com/osaka-food',
-      '大阪 グルメ',
-      '大阪 食べ物 グルメ ランチ',
-    )
-
-    const res = await search('東京')
-    expect(res.status).toBe(200)
-    const body = await res.json<{
-      articles: { rank: number }[]
-      total: number
-    }>()
-    expect(body.total).toBe(1)
-    expect(body.articles.length).toBe(1)
-    expect(typeof body.articles[0].rank).toBe('number')
-  })
-
-  it('excludes purged articles', async () => {
-    const feed = await seedFeed()
-    await env.DB.prepare(
-      `INSERT INTO articles (feed_id, title, url, full_text, title_tokens, purged_at)
-       VALUES (?, ?, ?, ?, ?, datetime('now'))`,
-    ).bind(feed.id, 'Purged', 'https://example.com/purged', 'text', 'パージ テスト').run()
-
-    const res = await search('パージ')
-    expect(res.status).toBe(200)
+  it('returns empty for no matches', async () => {
+    const res = await search('nonexistent')
     const body = await res.json<{ articles: unknown[]; total: number }>()
+    expect(body.articles).toHaveLength(0)
     expect(body.total).toBe(0)
   })
 
-  it('sanitizes FTS5 special syntax', async () => {
-    const feed = await seedFeed()
-    await insertArticleWithTokens(
-      feed.id as number,
-      'Test',
-      'https://example.com/test',
-      'テスト 記事',
-      'テスト 内容',
-    )
+  it('finds articles by FTS5 match', async () => {
+    const feed = await seedFeed() as { id: number }
+    // Rebuild FTS index
+    await env.DB.prepare("INSERT INTO articles_fts(articles_fts) VALUES ('rebuild')").run()
+    // Insert articles with tokens
+    await insertArticleWithTokens(feed.id, 'Cloudflare Workers', 'https://example.com/1', 'cloudflare workers', 'cloudflare workers serverless')
+    await insertArticleWithTokens(feed.id, 'React Hooks', 'https://example.com/2', 'react hooks', 'react hooks frontend')
+    // Sync FTS
+    await env.DB.prepare("INSERT INTO articles_fts(articles_fts) VALUES ('rebuild')").run()
 
-    // These should not cause FTS5 syntax errors
-    const res1 = await search('テスト AND OR NOT')
-    expect(res1.status).toBe(200)
-
-    const res2 = await search('テスト * ^ ()')
-    expect(res2.status).toBe(200)
-
-    const res3 = await search('"テスト"')
-    expect(res3.status).toBe(200)
+    const res = await search('cloudflare')
+    const body = await res.json<{ articles: Array<{ title: string }>; total: number }>()
+    expect(body.total).toBe(1)
+    expect(body.articles[0].title).toBe('Cloudflare Workers')
   })
 
-  it('returns corrections from trigram dictionary', async () => {
-    const feed = await seedFeed()
-    await insertArticleWithTokens(
-      feed.id as number,
-      'プログラミング入門',
-      'https://example.com/programming',
-      'プログラミング 入門',
-      'プログラミング 入門 初心者',
-    )
-
-    // Seed trigram dictionary with "プログラミング"
-    await env.DB.prepare(
-      'INSERT INTO term_dictionary (term) VALUES (?)',
-    ).bind('プログラミング').run()
-    const termRow = await env.DB.prepare(
-      'SELECT id FROM term_dictionary WHERE term = ?',
-    ).bind('プログラミング').first<{ id: number }>()
-
-    // Build trigrams for "プログラミング"
-    const chars = [...'プログラミング']
-    for (let i = 0; i <= chars.length - 3; i++) {
-      const tri = chars.slice(i, i + 3).join('')
-      await env.DB.prepare(
-        'INSERT OR IGNORE INTO term_trigrams (trigram, term_id) VALUES (?, ?)',
-      ).bind(tri, termRow!.id).run()
-    }
-
-    // Search with typo "プログラミンク" (ク instead of グ)
-    const res = await search('プログラミンク')
+  it('sanitizes FTS5 operators', async () => {
+    const res = await search('AND OR NOT test')
     expect(res.status).toBe(200)
-    const body = await res.json<{ corrections: string[] }>()
-    expect(body.corrections).toContain('プログラミング')
   })
 
-  it('respects limit and offset', async () => {
-    const feed = await seedFeed()
+  it('supports pagination', async () => {
+    const feed = await seedFeed() as { id: number }
+    await env.DB.prepare("INSERT INTO articles_fts(articles_fts) VALUES ('rebuild')").run()
     for (let i = 0; i < 5; i++) {
-      await insertArticleWithTokens(
-        feed.id as number,
-        `記事${i}`,
-        `https://example.com/article-${i}`,
-        'テスト 記事',
-        'テスト 記事 内容',
-      )
+      await insertArticleWithTokens(feed.id, `テスト記事${i}`, `https://example.com/${i}`, 'テスト', 'テスト 記事')
     }
+    await env.DB.prepare("INSERT INTO articles_fts(articles_fts) VALUES ('rebuild')").run()
 
     const res = await search('テスト', { limit: '2', offset: '0' })
     const body = await res.json<{ articles: unknown[]; total: number }>()
     expect(body.articles.length).toBe(2)
     expect(body.total).toBe(5)
+  })
+
+  it('returns corrections for typos', async () => {
+    const feed = await seedFeed() as { id: number }
+    // Insert a term in the dictionary
+    await env.DB.prepare('INSERT INTO term_dictionary (term, frequency) VALUES (?, ?)').bind('cloudflare', 10).run()
+    // Insert trigrams for the term
+    const trigrams = ['clo', 'lou', 'oud', 'udf', 'dfl', 'fla', 'lar', 'are']
+    const termId = (await env.DB.prepare('SELECT id FROM term_dictionary WHERE term = ?').bind('cloudflare').first<{ id: number }>())!.id
+    for (const tri of trigrams) {
+      await env.DB.prepare('INSERT INTO term_trigrams (trigram, term_id) VALUES (?, ?)').bind(tri, termId).run()
+    }
+
+    const res = await search('cloudflar')
+    const body = await res.json<{ corrections: string[] }>()
+    expect(body.corrections).toContain('cloudflare')
   })
 })

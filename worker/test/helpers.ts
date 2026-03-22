@@ -1,5 +1,6 @@
 import { env } from 'cloudflare:workers'
 import { applyD1Migrations } from 'cloudflare:test'
+import { createApiApp } from '../src/index'
 
 const DATA_TABLES = [
   'articles',
@@ -57,22 +58,14 @@ export async function seedFeed(
   return result!
 }
 
-/** Insert a test API key and return the raw key string. */
-export async function seedApiKey(scopes = 'read,write') {
-  const key = 'ok_test_' + crypto.randomUUID()
-  const hashBuffer = await crypto.subtle.digest(
-    'SHA-256',
-    new TextEncoder().encode(key),
-  )
-  const keyHash = [...new Uint8Array(hashBuffer)]
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('')
-  await env.DB.prepare(
-    'INSERT INTO api_keys (name, key_hash, key_prefix, scopes) VALUES (?, ?, ?, ?)',
-  )
-    .bind('test', keyHash, key.slice(0, 7), scopes)
-    .run()
-  return key
+/**
+ * Fetch against the API Hono app directly (bypasses OAuthProvider).
+ * Guard is pass-through — auth is not the concern of integration tests.
+ */
+const testApp = createApiApp(async (_, next) => next())
+
+export function fetchApi(path: string, init?: RequestInit) {
+  return testApp.request(path, init, env)
 }
 
 /** Insert a test article and return it. */

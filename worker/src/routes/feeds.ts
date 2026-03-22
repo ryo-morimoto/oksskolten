@@ -1,6 +1,5 @@
 import { Hono } from 'hono'
 import type { AppContext } from '../index'
-import { requireScope } from '../auth/bearer'
 
 export const feedRoutes = new Hono<AppContext>()
 
@@ -34,7 +33,7 @@ feedRoutes.get('/feeds/:id', async (c) => {
   return c.json(feed)
 })
 
-feedRoutes.post('/feeds', requireScope('write'), async (c) => {
+feedRoutes.post('/feeds', async (c) => {
   const body = await c.req.json<{
     url: string
     name?: string
@@ -67,7 +66,7 @@ feedRoutes.post('/feeds', requireScope('write'), async (c) => {
   return c.json(feed, 201)
 })
 
-feedRoutes.patch('/feeds/:id', requireScope('write'), async (c) => {
+feedRoutes.patch('/feeds/:id', async (c) => {
   const id = Number(c.req.param('id'))
   if (isNaN(id)) return c.json({ error: 'Invalid id' }, 400)
 
@@ -128,7 +127,7 @@ feedRoutes.patch('/feeds/:id', requireScope('write'), async (c) => {
   return c.json(updated)
 })
 
-feedRoutes.delete('/feeds/:id', requireScope('write'), async (c) => {
+feedRoutes.delete('/feeds/:id', async (c) => {
   const id = Number(c.req.param('id'))
   if (isNaN(id)) return c.json({ error: 'Invalid id' }, 400)
 

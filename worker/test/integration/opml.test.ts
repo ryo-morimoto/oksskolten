@@ -1,16 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { exports, env } from 'cloudflare:workers'
-import { setupTestDb, seedApiKey } from '../helpers'
-
-let apiKey: string
+import { env } from 'cloudflare:workers'
+import { setupTestDb, fetchApi } from '../helpers'
 
 const api = (path: string, init?: RequestInit) =>
-  exports.default.fetch(
-    new Request(`https://test.host/api${path}`, {
-      ...init,
-      headers: { Authorization: `Bearer ${apiKey}`, ...init?.headers },
-    }),
-  )
+  fetchApi(`/api${path}`, init)
 
 const SAMPLE_OPML = `<?xml version="1.0" encoding="UTF-8"?>
 <opml version="2.0">
@@ -27,7 +20,6 @@ const SAMPLE_OPML = `<?xml version="1.0" encoding="UTF-8"?>
 describe('OPML', () => {
   beforeEach(async () => {
     await setupTestDb()
-    apiKey = await seedApiKey()
   })
 
   describe('POST /api/opml (import)', () => {
