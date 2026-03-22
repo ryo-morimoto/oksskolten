@@ -32,8 +32,8 @@ describe('MCP tools', () => {
       'get_feeds',
       'get_reading_stats',
       'get_recent_activity',
+      'get_recommended',
       'get_similar_articles',
-      'get_triage',
       'get_user_preferences',
       'list_articles',
       'mark_as_read',
@@ -112,14 +112,14 @@ describe('MCP tools', () => {
     expect(result.isError).toBe(true)
   })
 
-  it('get_triage returns triaged articles', async () => {
+  it('get_recommended returns recommended articles', async () => {
     const feed = await seedFeed() as { id: number }
-    await seedArticle(feed.id, { title: 'Triage Test' })
+    await seedArticle(feed.id, { title: 'Recommended Test' })
     const client = await createTestClient()
-    const result = await client.callTool({ name: 'get_triage', arguments: { limit: 5 } })
+    const result = await client.callTool({ name: 'get_recommended', arguments: { limit: 5 } })
     const data = JSON.parse((result.content as Array<{ text: string }>)[0].text)
     expect(data.articles).toHaveLength(1)
-    expect(data.articles[0].triage_score).toBeGreaterThan(0)
+    expect(data.articles[0].recommendation_score).toBeGreaterThan(0)
   })
 
   it('get_feed_insights returns feed data', async () => {

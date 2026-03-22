@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { env } from 'cloudflare:workers'
 import { setupTestDb, seedFeed, seedArticle } from '../helpers'
-import { computeFeedInterests, getTriagedArticles } from '../../src/lib/triage'
+import { computeFeedInterests, getRecommendedArticles } from '../../src/lib/triage'
 
 describe('Triage', () => {
   beforeEach(async () => {
@@ -32,7 +32,7 @@ describe('Triage', () => {
     })
   })
 
-  describe('getTriagedArticles', () => {
+  describe('getRecommendedArticles', () => {
     it('ranks high-quality articles from engaged feeds first', async () => {
       const feed = await seedFeed() as { id: number }
 
@@ -45,9 +45,9 @@ describe('Triage', () => {
       const b = await seedArticle(feed.id, { title: 'Short Update' }) as { id: number }
       await env.DB.prepare('UPDATE articles SET quality_score = 0.1 WHERE id = ?').bind(b.id).run()
 
-      const result = await getTriagedArticles(env.DB, { unread_only: false, limit: 10 })
+      const result = await getRecommendedArticles(env.DB, { unread_only: false, limit: 10 })
       expect(result.articles[0].title).toBe('Deep Technical Guide')
-      expect(result.articles[0].triage_score).toBeGreaterThan(result.articles[1].triage_score)
+      expect(result.articles[0].recommendation_score).toBeGreaterThan(result.articles[1].recommendation_score)
     })
 
     it('filters by unread_only (default)', async () => {
@@ -56,7 +56,7 @@ describe('Triage', () => {
       const b = await seedArticle(feed.id, { title: 'Read' }) as { id: number }
       await env.DB.prepare("UPDATE articles SET seen_at = datetime('now') WHERE id = ?").bind(b.id).run()
 
-      const result = await getTriagedArticles(env.DB, {})
+      const result = await getRecommendedArticles(env.DB, {})
       expect(result.articles.every((a) => a.title === 'Unread')).toBe(true)
     })
 
@@ -72,7 +72,7 @@ describe('Triage', () => {
         await env.DB.prepare('UPDATE articles SET quality_score = ? WHERE id = ?').bind(score, art.id).run()
       }
 
-      const result = await getTriagedArticles(env.DB, { min_quality: 0.5, unread_only: false })
+      const result = await getRecommendedArticles(env.DB, { min_quality: 0.5, unread_only: false })
       expect(result.articles).toHaveLength(1)
       expect(result.articles[0].title).toBe('Good')
     })
@@ -81,9 +81,9 @@ describe('Triage', () => {
       const feed = await seedFeed() as { id: number }
       await seedArticle(feed.id, { title: 'No Score' })
 
-      const result = await getTriagedArticles(env.DB, { unread_only: false })
+      const result = await getRecommendedArticles(env.DB, { unread_only: false })
       expect(result.articles).toHaveLength(1)
-      expect(result.articles[0].triage_score).toBeGreaterThan(0)
+      expect(result.articles[0].recommendation_score).toBeGreaterThan(0)
     })
 
     it('supports pagination', async () => {
@@ -92,8 +92,8 @@ describe('Triage', () => {
         await seedArticle(feed.id, { title: `Article ${i}` })
       }
 
-      const page1 = await getTriagedArticles(env.DB, { limit: 2, offset: 0, unread_only: false })
-      const page2 = await getTriagedArticles(env.DB, { limit: 2, offset: 2, unread_only: false })
+      const page1 = await getRecommendedArticles(env.DB, { limit: 2, offset: 0, unread_only: false })
+      const page2 = await getRecommendedArticles(env.DB, { limit: 2, offset: 2, unread_only: false })
       expect(page1.articles).toHaveLength(2)
       expect(page2.articles).toHaveLength(2)
       expect(page1.total).toBe(5)

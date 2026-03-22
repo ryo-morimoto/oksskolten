@@ -2,7 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
 import type { Env } from '../index'
 import { hybridSearch, extractEmbedding } from '../lib/search'
-import { getTriagedArticles, computeFeedInterests } from '../lib/triage'
+import { getRecommendedArticles, computeFeedInterests } from '../lib/triage'
 
 type ToolResult = { content: Array<{ type: 'text'; text: string }>; isError?: boolean }
 
@@ -378,8 +378,8 @@ export function createMcpServer(env: Env): McpServer {
 
   // ── Triage tools ──────────────────────────────────────────
 
-  server.registerTool('get_triage', {
-    description: 'Get triaged articles ranked by structural quality, feed interest, and recency. Returns the best articles to read right now.',
+  server.registerTool('get_recommended', {
+    description: 'Get recommended articles ranked by structural quality, feed interest, and recency. Returns the best articles to read right now.',
     inputSchema: {
       feed_id: z.number().optional().describe('Filter to a specific feed'),
       category_id: z.number().optional().describe('Filter to a specific category'),
@@ -390,7 +390,7 @@ export function createMcpServer(env: Env): McpServer {
     },
     annotations: { readOnlyHint: true },
   }, async (params) => {
-    const result = await getTriagedArticles(db, {
+    const result = await getRecommendedArticles(db, {
       feed_id: params.feed_id,
       category_id: params.category_id,
       min_quality: params.min_quality,

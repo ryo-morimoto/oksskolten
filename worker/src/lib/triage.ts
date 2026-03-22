@@ -6,7 +6,7 @@ export interface FeedInterest {
   articleCount: number
 }
 
-export interface TriagedArticle {
+export interface RecommendedArticle {
   id: number
   title: string
   url: string
@@ -14,14 +14,14 @@ export interface TriagedArticle {
   feed_id: number
   feed_name: string
   quality_score: number | null
-  triage_score: number
+  recommendation_score: number
   published_at: string | null
   seen_at: string | null
   bookmarked_at: string | null
   liked_at: string | null
 }
 
-export interface TriageOptions {
+export interface RecommendOptions {
   limit?: number
   offset?: number
   feed_id?: number
@@ -84,11 +84,11 @@ function computeRecencyDecay(publishedAt: string | null, fetchedAt: string): num
   return 1 / (1 + Math.max(ageDays, 0) * 0.1)
 }
 
-/** Get triaged articles ranked by quality × feed interest × recency. */
-export async function getTriagedArticles(
+/** Get recommended articles ranked by quality × feed interest × recency. */
+export async function getRecommendedArticles(
   db: D1Database,
-  options: TriageOptions,
-): Promise<{ articles: TriagedArticle[]; total: number }> {
+  options: RecommendOptions,
+): Promise<{ articles: RecommendedArticle[]; total: number }> {
   const limit = options.limit ?? 10
   const offset = options.offset ?? 0
 
@@ -137,7 +137,7 @@ export async function getTriagedArticles(
     const quality = row.quality_score ?? 0.5
     const feedInterest = interestMap.get(row.feed_id) ?? 0.1
     const recency = computeRecencyDecay(row.published_at, row.fetched_at)
-    const triageScore = quality * feedInterest * recency
+    const recScore = quality * feedInterest * recency
 
     return {
       id: row.id,
@@ -147,7 +147,7 @@ export async function getTriagedArticles(
       feed_id: row.feed_id,
       feed_name: row.feed_name,
       quality_score: row.quality_score,
-      triage_score: triageScore,
+      recommendation_score: recScore,
       published_at: row.published_at,
       seen_at: row.seen_at,
       bookmarked_at: row.bookmarked_at,
@@ -155,7 +155,7 @@ export async function getTriagedArticles(
     }
   })
 
-  scored.sort((a, b) => b.triage_score - a.triage_score)
+  scored.sort((a, b) => b.recommendation_score - a.recommendation_score)
 
   const total = scored.length
   const page = scored.slice(offset, offset + limit)
