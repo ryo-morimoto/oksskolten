@@ -355,18 +355,17 @@ export class ArticlePipelineWorkflow extends WorkflowEntrypoint<
       return { scoredCount: rows.results.length }
     })
 
-    // Step 5: build_trigram — INSERT OR IGNORE (UNIQUE = idempotent)
+    // Step 5: build_trigram — only process articles not yet trigrammed (trigrams_at IS NULL)
     await step.do(
       'build_trigram',
       {
         retries: { limit: 2, delay: '5 second', backoff: 'exponential' },
-        timeout: '2 minutes',
+        timeout: '30 seconds',
       },
       async () => {
-        // Get recently tokenized articles' nouns via kuromoji
         const articles = await this.env.DB.prepare(
           `SELECT id, title_tokens, full_text_tokens FROM articles
-           WHERE feed_id = ? AND title_tokens IS NOT NULL
+           WHERE feed_id = ? AND title_tokens IS NOT NULL AND trigrams_at IS NULL
            ORDER BY id DESC LIMIT 20`,
         )
           .bind(feed.feedId)
@@ -375,6 +374,8 @@ export class ArticlePipelineWorkflow extends WorkflowEntrypoint<
             title_tokens: string
             full_text_tokens: string | null
           }>()
+
+        if (articles.results.length === 0) return { termsAdded: 0 }
 
         // Extract unique terms (2+ chars) from tokens
         const termSet = new Set<string>()
@@ -388,7 +389,17 @@ export class ArticlePipelineWorkflow extends WorkflowEntrypoint<
           }
         }
 
-        if (termSet.size === 0) return { termsAdded: 0 }
+        if (termSet.size === 0) {
+          // Mark as processed even if no terms (short articles)
+          await this.env.DB.batch(
+            articles.results.map((a) =>
+              this.env.DB.prepare(
+                "UPDATE articles SET trigrams_at = datetime('now') WHERE id = ?",
+              ).bind(a.id),
+            ),
+          )
+          return { termsAdded: 0 }
+        }
 
         // Batch upsert terms into dictionary
         const terms = [...termSet]
@@ -408,7 +419,6 @@ export class ArticlePipelineWorkflow extends WorkflowEntrypoint<
         // Build trigrams for new terms
         for (let i = 0; i < terms.length; i += batchSize) {
           const chunk = terms.slice(i, i + batchSize)
-          // Get term IDs
           const placeholders = chunk.map(() => '?').join(',')
           const rows = await this.env.DB.prepare(
             `SELECT id, term FROM term_dictionary WHERE term IN (${placeholders})`,
@@ -429,12 +439,20 @@ export class ArticlePipelineWorkflow extends WorkflowEntrypoint<
           }
 
           if (trigramInserts.length > 0) {
-            // D1 batch limit is 100
             for (let j = 0; j < trigramInserts.length; j += 100) {
               await this.env.DB.batch(trigramInserts.slice(j, j + 100))
             }
           }
         }
+
+        // Mark articles as processed
+        await this.env.DB.batch(
+          articles.results.map((a) =>
+            this.env.DB.prepare(
+              "UPDATE articles SET trigrams_at = datetime('now') WHERE id = ?",
+            ).bind(a.id),
+          ),
+        )
 
         return { termsAdded: terms.length }
       },
