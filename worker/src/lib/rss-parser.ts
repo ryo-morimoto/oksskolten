@@ -19,7 +19,7 @@ export function normalizeDate(raw: string | undefined): string | null {
 /**
  * Parse RSS/Atom/RDF XML into a list of items.
  */
-export async function parseRssXml(xml: string): Promise<RssItem[]> {
+export async function parseRssXml(xml: string, feedUrl?: string): Promise<RssItem[]> {
   // Try feedsmith first
   try {
     const { parseFeed } = await import("feedsmith");
@@ -72,6 +72,7 @@ export async function parseRssXml(xml: string): Promise<RssItem[]> {
               ...(excerpt ? { excerpt } : {}),
             };
           }),
+        feedUrl,
       );
     }
   } catch {
@@ -109,6 +110,7 @@ export async function parseRssXml(xml: string): Promise<RssItem[]> {
           };
         })
         .filter((item: RssItem) => item.url),
+      feedUrl,
     );
   }
 
@@ -135,6 +137,7 @@ export async function parseRssXml(xml: string): Promise<RssItem[]> {
           };
         })
         .filter((item: RssItem) => item.url),
+      feedUrl,
     );
   }
 
@@ -151,12 +154,22 @@ export async function parseRssXml(xml: string): Promise<RssItem[]> {
           published_at: normalizeDate((item["dc:date"] ?? item.pubDate) as string | undefined),
         }))
         .filter((item: RssItem) => item.url),
+      feedUrl,
     );
   }
 
   throw new Error("Could not parse RSS/Atom feed");
 }
 
-function cleanItems(items: RssItem[]): RssItem[] {
-  return items.map((item) => ({ ...item, url: cleanUrl(item.url) }));
+function resolveUrl(url: string, baseUrl?: string): string {
+  if (!baseUrl) return url;
+  try {
+    return new URL(url, baseUrl).href;
+  } catch {
+    return url;
+  }
+}
+
+function cleanItems(items: RssItem[], feedUrl?: string): RssItem[] {
+  return items.map((item) => ({ ...item, url: cleanUrl(resolveUrl(item.url, feedUrl)) }));
 }

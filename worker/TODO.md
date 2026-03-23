@@ -12,17 +12,9 @@
 
 ---
 
-## 3. Data Quality — 記事データに欠陥がある
+## ~~3. Data Quality — 記事データに欠陥がある~~ ✅
 
-### Why
-
-検索結果やレコメンドの出力を見ても、データ自体の問題で記事の関連性を判断できない。リンクが壊れている、要約が短すぎる、分類がない。
-
-### What
-
-- **一部の記事URLが相対パス**: Zach Tellmanの記事が `/code/the-passport.html` のように返る。フィードパース時に base URL との結合が漏れている
-- **excerpt が短すぎる**: 150文字で切られるため検索結果から関連性を判断できない。10件評価するのに11回API呼び出しが必要
-- **カテゴリが未定義**: `get_categories` は存在するが category_id が全フィード null。フィードをトピックでグルーピングする手段がない
+完了: 相対URL→絶対URL変換（feedUrl base 結合）、excerpt 200→500文字拡張、`update_feed` MCPツール追加（category_id 割当可能に）。
 
 ---
 

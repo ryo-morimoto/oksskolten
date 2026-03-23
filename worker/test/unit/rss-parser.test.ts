@@ -93,6 +93,36 @@ describe("parseRssXml", () => {
     expect(items[0]!.excerpt).toContain("A short excerpt of the article");
   });
 
+  it("resolves relative URLs against feedUrl", async () => {
+    const xml = `<?xml version="1.0"?>
+      <rss version="2.0">
+        <channel>
+          <item>
+            <title>Relative Link</title>
+            <link>/code/the-passport.html</link>
+          </item>
+        </channel>
+      </rss>`;
+
+    const items = await parseRssXml(xml, "https://ideolalia.com/feed.xml");
+    expect(items[0]!.url).toBe("https://ideolalia.com/code/the-passport.html");
+  });
+
+  it("keeps absolute URLs unchanged when feedUrl is provided", async () => {
+    const xml = `<?xml version="1.0"?>
+      <rss version="2.0">
+        <channel>
+          <item>
+            <title>Absolute</title>
+            <link>https://example.com/post</link>
+          </item>
+        </channel>
+      </rss>`;
+
+    const items = await parseRssXml(xml, "https://other.com/feed.xml");
+    expect(items[0]!.url).toBe("https://example.com/post");
+  });
+
   it("throws on invalid XML", async () => {
     await expect(parseRssXml("<html><body>Not RSS</body></html>")).rejects.toThrow();
   });

@@ -102,7 +102,7 @@ export class IngestWorkflow extends WorkflowEntrypoint<Env, IngestParams> {
         }
 
         // Parse
-        const items = await parseRssXml(xml);
+        const items = await parseRssXml(xml, feed.rssUrl);
 
         // Compute schedule
         const empirical = computeEmpiricalInterval(items);

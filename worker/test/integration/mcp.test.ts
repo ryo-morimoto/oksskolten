@@ -20,7 +20,7 @@ describe("MCP tools", () => {
     await setupTestDb();
   });
 
-  it("lists all 16 tools", async () => {
+  it("lists all 17 tools", async () => {
     const client = await createTestClient();
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual([
@@ -40,6 +40,7 @@ describe("MCP tools", () => {
       "search_articles",
       "toggle_bookmark",
       "toggle_like",
+      "update_feed",
     ]);
   });
 

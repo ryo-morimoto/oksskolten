@@ -34,9 +34,9 @@ describe("extractContent", () => {
     expect(result).toHaveProperty("title");
     expect(result).toHaveProperty("ogImage");
     expect(result).toHaveProperty("excerpt");
-    // If content was extracted, excerpt should be under 200 chars
+    // If content was extracted, excerpt should be under 500 chars
     if (result.excerpt) {
-      expect(result.excerpt.length).toBeLessThanOrEqual(200);
+      expect(result.excerpt.length).toBeLessThanOrEqual(500);
     }
   });
 

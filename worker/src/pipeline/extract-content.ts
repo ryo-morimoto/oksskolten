@@ -50,7 +50,7 @@ export async function extractContent(
         .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
         .replace(/\s+/g, " ")
         .trim();
-      excerpt = plain.slice(0, 200).trim() || null;
+      excerpt = plain.slice(0, 500).trim() || null;
     }
 
     if (!fullText || fullText.trim().length < 50) {
@@ -58,7 +58,7 @@ export async function extractContent(
         return {
           fullText: options.fallbackContent,
           ogImage,
-          excerpt: options.fallbackContent.slice(0, 200).trim() || null,
+          excerpt: options.fallbackContent.slice(0, 500).trim() || null,
           title,
         };
       }
@@ -75,7 +75,7 @@ function fallbackResult(fallbackContent?: string): ExtractedContent {
     return {
       fullText: fallbackContent,
       ogImage: null,
-      excerpt: fallbackContent.slice(0, 200).trim() || null,
+      excerpt: fallbackContent.slice(0, 500).trim() || null,
       title: null,
     };
   }

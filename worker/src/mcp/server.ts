@@ -317,6 +317,55 @@ export function createMcpServer(env: Env): McpServer {
   );
 
   server.registerTool(
+    "update_feed",
+    {
+      description:
+        "Update a feed's properties. Use to assign a category, rename, or change the RSS URL. Category changes cascade to all articles in the feed.",
+      inputSchema: {
+        id: z.number().describe("Feed ID"),
+        name: z.string().optional().describe("New display name"),
+        rss_url: z.string().url().optional().describe("New RSS/Atom feed URL"),
+        category_id: z
+          .number()
+          .nullable()
+          .optional()
+          .describe("Category ID to assign (null to remove)"),
+      },
+      annotations: { readOnlyHint: false, idempotentHint: true },
+    },
+    async ({ id, name, rss_url, category_id }) => {
+      const existing = await db
+        .prepare("SELECT name, rss_url, category_id FROM feeds WHERE id = ?")
+        .bind(id)
+        .first<{ name: string; rss_url: string | null; category_id: number | null }>();
+      if (!existing) return error("Feed not found");
+
+      const merged = {
+        name: name ?? existing.name,
+        rss_url: rss_url ?? existing.rss_url,
+        category_id: category_id !== undefined ? category_id : existing.category_id,
+      };
+
+      const stmts = [
+        db
+          .prepare("UPDATE feeds SET name = ?, rss_url = ?, category_id = ? WHERE id = ?")
+          .bind(merged.name, merged.rss_url, merged.category_id, id),
+      ];
+
+      if (category_id !== undefined) {
+        stmts.push(
+          db.prepare("UPDATE articles SET category_id = ? WHERE feed_id = ?").bind(merged.category_id, id),
+        );
+      }
+
+      await db.batch(stmts);
+
+      const updated = await db.prepare("SELECT * FROM feeds WHERE id = ?").bind(id).first();
+      return json(updated);
+    },
+  );
+
+  server.registerTool(
     "mark_as_read",
     {
       description: "Mark an article as read",
