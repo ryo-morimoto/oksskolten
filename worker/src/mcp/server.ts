@@ -9,7 +9,7 @@ import type { Env } from "../index";
 import { hybridSearch, extractEmbedding } from "../lib/search";
 import { getRecommendedArticles, computeFeedInterests } from "../lib/triage";
 // Bundled at build time by scripts/bundle-ui.mjs
-import articlesHtml from "../lib/articles-ui-bundle.html";
+import articlesHtml from "../../ui/dist/index.html";
 
 type ToolResult = { content: Array<{ type: "text"; text: string }>; isError?: boolean };
 
@@ -390,13 +390,14 @@ export function createMcpServer(env: Env): McpServer {
       description: "Search articles using hybrid FTS5 + semantic search with trigram correction",
       inputSchema: {
         query: z.string().min(2).describe("Search query (at least 2 characters)"),
+        feed_id: z.number().optional().describe("Filter to a specific feed"),
         limit: z.number().min(1).max(100).optional().describe("Number of results (default: 20)"),
         offset: z.number().min(0).optional().describe("Pagination offset"),
       },
       annotations: { readOnlyHint: true },
     },
-    async ({ query, limit, offset }) => {
-      const result = await hybridSearch(env, query, limit ?? 20, offset ?? 0);
+    async ({ query, feed_id, limit, offset }) => {
+      const result = await hybridSearch(env, query, limit ?? 20, offset ?? 0, feed_id);
       return json(result);
     },
   );
