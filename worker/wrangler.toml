@@ -11,11 +11,17 @@ binding = "DB"
 database_name = "oksskolten"
 database_id = "53d7ac03-5ae9-4800-a263-d0d98f983f11"
 
-# Workflow: article processing pipeline (replaces Queue)
+# Workflow: feed ingestion (fetch → save → extract → embed)
 [[workflows]]
-name = "article-pipeline"
-binding = "ARTICLE_PIPELINE"
-class_name = "ArticlePipelineWorkflow"
+name = "ingest-workflow"
+binding = "INGEST_WORKFLOW"
+class_name = "IngestWorkflow"
+
+# Workflow: article enrichment (tokenize → quality → trigram), single instance
+[[workflows]]
+name = "enrich-workflow"
+binding = "ENRICH_WORKFLOW"
+class_name = "EnrichWorkflow"
 
 # Container: kuromoji tokenizer
 [[containers]]

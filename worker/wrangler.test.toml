@@ -14,9 +14,14 @@ database_name = "oksskolten"
 database_id = "53d7ac03-5ae9-4800-a263-d0d98f983f11"
 
 [[workflows]]
-name = "article-pipeline"
-binding = "ARTICLE_PIPELINE"
-class_name = "ArticlePipelineWorkflow"
+name = "ingest-workflow"
+binding = "INGEST_WORKFLOW"
+class_name = "IngestWorkflow"
+
+[[workflows]]
+name = "enrich-workflow"
+binding = "ENRICH_WORKFLOW"
+class_name = "EnrichWorkflow"
 
 [[containers]]
 class_name = "KuromojiContainer"
