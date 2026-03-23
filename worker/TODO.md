@@ -1,32 +1,14 @@
 # TODO
 
-## 1. Search & Discovery — 検索で目的の記事にたどり着けない
+## ~~1. Search & Discovery — 検索で目的の記事にたどり着けない~~ ✅
 
-### Why
-
-3000+記事の中から概念的に関連する記事を見つける手段が事実上ない。"product issue why what problem definition" で検索して Cloudflare Custom Regions の記事が返ってくる。5回クエリを変えても目的の記事に到達できなかった。フィードリーダーの存在意義に関わる。
-
-### What
-
-- **意味的検索の精度が低い**: FTS5 + Vectorize のハイブリッド検索が実装されているが、キーワード部分一致レベルの結果しか返さない。Vectorize 側が実質機能していない可能性がある
-- **検索とフィード絞り込みが併用できない**: `search_articles` に `feed_id` がない。「Will Larsonの記事からproduct thinkingを探す」が一発で出せない
-- **corrections がノイズ**: "product issue" に対して "productionizing" が返る。スペルミス修正ではなく無関係な候補
-- **トピックベースの探索手段がゼロ**: 「最近フィード横断で多く議論されているテーマは？」に答える機能がない
-- **similar_articles が鶏卵問題**: 起点となる記事IDが必要だが、その記事を検索で見つけられない
+完了: full_text ベース再 embedding、feed_id 絞り込み、per-word trigram 補正、quality_score RRF ブースト。
 
 ---
 
-## 2. Scoring & Recommendation — レコメンドが機能していない
+## ~~2. Scoring & Recommendation — レコメンドが機能していない~~ ✅
 
-### Why
-
-全記事 `score: 0`。get_recommended が何を返しても根拠がない。検索も壊れているため、数千記事の中から「今読むべきもの」を発見する手段が完全にゼロ。
-
-### What
-
-- **全記事 score: 0**: interest score の算出ロジックが engagement データ（read/like/bookmark）に依存するが、利用データがゼロまたは蓄積されていない
-- **quality_score が活用されていない**: EnrichWorkflow で計算されているが、レコメンド以外の表面（検索結果の並び順、フィード一覧）に露出していない
-- **コールドスタート問題**: engagement がない状態でもそれなりの推薦ができる仕組みが必要
+完了: sort=score を quality_score に置換、RRF に quality boost 追加、コールドスタート時 NULL→0.3 で差別化。
 
 ---
 
