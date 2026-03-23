@@ -9,7 +9,18 @@ export function sanitizeFts5Query(query: string): string {
     .trim();
 }
 
-/** RRF rank fusion (k=60) + log engagement boost + quality boost. */
+/**
+ * RRF rank fusion (k=60) + engagement boost + quality boost.
+ *
+ * Typical magnitudes (rank=1, single source):
+ *   RRF base  ≈ 0.016   (1/61)
+ *   engagement max ≈ 0.023  (log(10)*0.01, full engagement)
+ *   quality max   ≈ 0.02   (1.0 * 0.02)
+ *
+ * Quality weight (0.02) is capped below base RRF so relevance
+ * always dominates; quality only breaks ties among similar ranks.
+ * NULL quality (unscored) contributes 0 — no penalty, no boost.
+ */
 export function computeRrfScore(
   ranks: number[],
   engagement: number,
@@ -78,6 +89,7 @@ export async function hybridSearch(
   rawQuery: string,
   limit: number,
   offset: number,
+  feedId?: number,
 ): Promise<SearchResult> {
   const db = env.DB;
   const sanitized = sanitizeFts5Query(rawQuery);
@@ -86,21 +98,31 @@ export async function hybridSearch(
     return { articles: [], total: 0, corrections: [] };
   }
 
-  let matchQuery = sanitized;
   const corrections: string[] = [];
+  const words = sanitized.split(/\s+/).filter((w) => w.length >= 2);
 
-  const exactMatch = await db
-    .prepare("SELECT term FROM term_dictionary WHERE term = ?")
-    .bind(sanitized)
-    .first<{ term: string }>();
+  // Check each word against term_dictionary; only correct unknown words
+  const resolvedWords: string[] = [];
+  for (const word of words) {
+    const known = await db
+      .prepare("SELECT term FROM term_dictionary WHERE term = ?")
+      .bind(word)
+      .first<{ term: string }>();
 
-  if (!exactMatch) {
-    const candidates = await findTrigramCandidates(db, sanitized, 3);
-    if (candidates.length > 0) {
-      corrections.push(...candidates);
-      matchQuery = [sanitized, ...candidates].join(" OR ");
+    if (known) {
+      resolvedWords.push(word);
+    } else {
+      const candidates = await findTrigramCandidates(db, word, 2);
+      if (candidates.length > 0) {
+        corrections.push(...candidates);
+        resolvedWords.push(word, ...candidates);
+      } else {
+        resolvedWords.push(word);
+      }
     }
   }
+
+  const matchQuery = resolvedWords.length > 0 ? resolvedWords.join(" OR ") : sanitized;
 
   // Generate embedding (best-effort; falls back to FTS5-only)
   let queryEmbedding: number[] | null = null;
@@ -113,22 +135,26 @@ export async function hybridSearch(
 
   // Run FTS5 + Vectorize in parallel
   type FtsIdRow = { id: number };
+  const feedFilter = feedId != null ? "AND a.feed_id = ?" : "";
+  const ftsBinds = feedId != null ? [matchQuery, feedId] : [matchQuery];
   const ftsPromise = db
     .prepare(
       `SELECT a.id
        FROM articles_fts fts
        JOIN active_articles a ON a.id = fts.rowid
-       WHERE articles_fts MATCH ?
+       WHERE articles_fts MATCH ? ${feedFilter}
        ORDER BY rank
        LIMIT 100`,
     )
-    .bind(matchQuery)
+    .bind(...ftsBinds)
     .all<FtsIdRow>()
     .then((r) => r.results)
     .catch(() => [] as FtsIdRow[]);
 
+  const vecOpts: VectorizeQueryOptions =
+    feedId != null ? { topK: 100, filter: { feed_id: feedId } } : { topK: 100 };
   const vecPromise = queryEmbedding
-    ? env.VECTORIZE.query(queryEmbedding, { topK: 100 })
+    ? env.VECTORIZE.query(queryEmbedding, vecOpts)
         .then((r) => r.matches ?? [])
         .catch(() => [] as Array<{ id: string; score: number }>)
     : Promise.resolve([] as Array<{ id: string; score: number }>);
