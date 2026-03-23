@@ -13,3 +13,7 @@ coverage/
 .claude/settings.local.json
 .claude/worktrees/
 .claude/rules/.*.md
+
+# Misc
+.omc/
+CLAUDE.md.bak
