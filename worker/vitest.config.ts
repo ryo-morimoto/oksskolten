@@ -28,7 +28,7 @@ export default defineConfig(async () => {
     ],
     test: {
       globals: true,
-      exclude: ['test/e2e/**', 'node_modules/**'],
+      exclude: ['test/e2e/**', 'node_modules/**', 'ui/**'],
     },
   }
 })

@@ -1,13 +1,13 @@
-import { describe, it, expect } from 'vitest'
-import { computeQualityScore } from '../../src/lib/quality'
+import { describe, it, expect } from "vitest";
+import { computeQualityScore } from "../../src/lib/quality";
 
-describe('computeQualityScore', () => {
-  it('returns 0 for empty/very short content', () => {
-    expect(computeQualityScore({ markdown: '' })).toBe(0)
-    expect(computeQualityScore({ markdown: 'short' })).toBe(0)
-  })
+describe("computeQualityScore", () => {
+  it("returns 0 for empty/very short content", () => {
+    expect(computeQualityScore({ markdown: "" })).toBe(0);
+    expect(computeQualityScore({ markdown: "short" })).toBe(0);
+  });
 
-  it('scores high for a well-structured technical article', () => {
+  it("scores high for a well-structured technical article", () => {
     const markdown = `# Deep Dive into Cloudflare Workers
 
 ## Introduction
@@ -54,22 +54,22 @@ The [Cache API](https://developers.cloudflare.com/workers/runtime-apis/cache/) p
 
 ## Conclusion
 
-Workers provide a compelling platform for building globally distributed applications with minimal operational overhead.`
+Workers provide a compelling platform for building globally distributed applications with minimal operational overhead.`;
 
-    const score = computeQualityScore({ markdown })
-    expect(score).toBeGreaterThan(0.4)
-  })
+    const score = computeQualityScore({ markdown });
+    expect(score).toBeGreaterThan(0.4);
+  });
 
-  it('scores low for a short stub article', () => {
+  it("scores low for a short stub article", () => {
     const markdown = `# Quick Update
 
-New version released. Check it out.`
+New version released. Check it out.`;
 
-    const score = computeQualityScore({ markdown })
-    expect(score).toBeLessThan(0.3)
-  })
+    const score = computeQualityScore({ markdown });
+    expect(score).toBeLessThan(0.3);
+  });
 
-  it('uses tokenCount for Japanese word count when provided', () => {
+  it("uses tokenCount for Japanese word count when provided", () => {
     // Japanese text is short in chars but long in tokens — tokenCount overrides word counting
     const markdown = `# Cloudflare Workers の深掘り
 
@@ -85,44 +85,53 @@ Hono を使った軽量ルーターが最も一般的なパターンです。ミ
 
 ### データレイヤー
 
-D1 はエッジで SQLite を提供します。複雑なクエリには、型安全性とパフォーマンスのためにプリペアドステートメントの使用を検討してください。`
+D1 はエッジで SQLite を提供します。複雑なクエリには、型安全性とパフォーマンスのためにプリペアドステートメントの使用を検討してください。`;
 
-    const scoreWithoutTokens = computeQualityScore({ markdown })
-    const scoreWithTokens = computeQualityScore({ markdown, tokenCount: 3000 })
-    expect(scoreWithTokens).toBeGreaterThan(scoreWithoutTokens)
-  })
+    const scoreWithoutTokens = computeQualityScore({ markdown });
+    const scoreWithTokens = computeQualityScore({ markdown, tokenCount: 3000 });
+    expect(scoreWithTokens).toBeGreaterThan(scoreWithoutTokens);
+  });
 
-  it('rewards heading depth (h2+h3+h4)', () => {
-    const flat = `# Title\n\n## Section 1\n\nContent here with enough words to pass the minimum threshold for word count normalization.\n\n## Section 2\n\nMore content here.`
-    const deep = `# Title\n\n## Section 1\n\n### Subsection\n\n#### Detail\n\nContent here with enough words to pass the minimum threshold for word count normalization.\n\n## Section 2\n\nMore content here.`
+  it("rewards heading depth (h2+h3+h4)", () => {
+    const flat = `# Title\n\n## Section 1\n\nContent here with enough words to pass the minimum threshold for word count normalization.\n\n## Section 2\n\nMore content here.`;
+    const deep = `# Title\n\n## Section 1\n\n### Subsection\n\n#### Detail\n\nContent here with enough words to pass the minimum threshold for word count normalization.\n\n## Section 2\n\nMore content here.`;
 
-    const flatScore = computeQualityScore({ markdown: flat })
-    const deepScore = computeQualityScore({ markdown: deep })
-    expect(deepScore).toBeGreaterThan(flatScore)
-  })
+    const flatScore = computeQualityScore({ markdown: flat });
+    const deepScore = computeQualityScore({ markdown: deep });
+    expect(deepScore).toBeGreaterThan(flatScore);
+  });
 
-  it('rewards code blocks', () => {
-    const noCode = `# Article\n\nThis article discusses programming concepts in detail with sufficient length to score.` + '\n\n'.repeat(5) + 'More text. '.repeat(50)
-    const withCode = noCode + '\n\n```typescript\nconst x = 1\n```\n\n```typescript\nconst y = 2\n```'
+  it("rewards code blocks", () => {
+    const noCode =
+      `# Article\n\nThis article discusses programming concepts in detail with sufficient length to score.` +
+      "\n\n".repeat(5) +
+      "More text. ".repeat(50);
+    const withCode =
+      noCode + "\n\n```typescript\nconst x = 1\n```\n\n```typescript\nconst y = 2\n```";
 
     expect(computeQualityScore({ markdown: withCode })).toBeGreaterThan(
       computeQualityScore({ markdown: noCode }),
-    )
-  })
+    );
+  });
 
-  it('rewards external links', () => {
-    const noLinks = `# Article\n\n` + 'Content paragraph. '.repeat(50)
-    const withLinks = noLinks + '\n\nSee [docs](https://example.com) and [source](https://github.com/example).'
+  it("rewards external links", () => {
+    const noLinks = `# Article\n\n` + "Content paragraph. ".repeat(50);
+    const withLinks =
+      noLinks + "\n\nSee [docs](https://example.com) and [source](https://github.com/example).";
 
     expect(computeQualityScore({ markdown: withLinks })).toBeGreaterThan(
       computeQualityScore({ markdown: noLinks }),
-    )
-  })
+    );
+  });
 
-  it('returns value between 0 and 1', () => {
-    const massive = '## Heading\n\n' + '[link](https://example.com) '.repeat(500) + '\n\n```js\ncode\n```\n'.repeat(20) + '\n\n![img](https://example.com/img.png)\n'.repeat(20)
-    const score = computeQualityScore({ markdown: massive })
-    expect(score).toBeGreaterThanOrEqual(0)
-    expect(score).toBeLessThanOrEqual(1)
-  })
-})
+  it("returns value between 0 and 1", () => {
+    const massive =
+      "## Heading\n\n" +
+      "[link](https://example.com) ".repeat(500) +
+      "\n\n```js\ncode\n```\n".repeat(20) +
+      "\n\n![img](https://example.com/img.png)\n".repeat(20);
+    const score = computeQualityScore({ markdown: massive });
+    expect(score).toBeGreaterThanOrEqual(0);
+    expect(score).toBeLessThanOrEqual(1);
+  });
+});

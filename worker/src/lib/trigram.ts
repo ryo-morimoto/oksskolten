@@ -9,13 +9,13 @@
  * e.g. "プログラミング" → ["プログ", "ログラ", "グラミ", "ラミン", "ミング"]
  */
 export function decomposeTrigrams(term: string): string[] {
-  const chars = [...term.normalize('NFC')] // handle multi-byte chars, normalize NFD→NFC
-  if (chars.length < 3) return [term]
-  const trigrams: string[] = []
+  const chars = [...term.normalize("NFC")]; // handle multi-byte chars, normalize NFD→NFC
+  if (chars.length < 3) return [term];
+  const trigrams: string[] = [];
   for (let i = 0; i <= chars.length - 3; i++) {
-    trigrams.push(chars.slice(i, i + 3).join(''))
+    trigrams.push(chars.slice(i, i + 3).join(""));
   }
-  return trigrams
+  return trigrams;
 }
 
 /**
@@ -27,10 +27,11 @@ export async function findTrigramCandidates(
   query: string,
   limit = 3,
 ): Promise<string[]> {
-  const trigrams = decomposeTrigrams(query)
-  if (trigrams.length === 0) return []
+  // D1 limits bind parameters to 100; reserve 1 for the LIMIT param
+  const trigrams = decomposeTrigrams(query).slice(0, 99);
+  if (trigrams.length === 0) return [];
 
-  const placeholders = trigrams.map(() => '?').join(',')
+  const placeholders = trigrams.map(() => "?").join(",");
   const result = await db
     .prepare(
       `SELECT td.term, COUNT(*) as match_count
@@ -42,7 +43,7 @@ export async function findTrigramCandidates(
        LIMIT ?`,
     )
     .bind(...trigrams, limit)
-    .all<{ term: string; match_count: number }>()
+    .all<{ term: string; match_count: number }>();
 
-  return result.results.map((r) => r.term)
+  return result.results.map((r) => r.term);
 }

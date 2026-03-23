@@ -1,0 +1,21 @@
+{
+  "$schema": "https://raw.githubusercontent.com/nicolo-ribaudo/oxlint-config/refs/heads/main/schema.json",
+  "rules": {
+    "no-console": "error",
+    "typescript/no-explicit-any": "error",
+    "typescript/no-floating-promises": "error",
+    "typescript/switch-exhaustiveness-check": "error",
+    "typescript/strict-boolean-expressions": "error"
+  },
+  "overrides": [
+    {
+      "files": ["test/**/*.ts"],
+      "rules": {
+        "no-console": "off",
+        "typescript/no-floating-promises": "off",
+        "typescript/strict-boolean-expressions": "off"
+      }
+    }
+  ],
+  "ignorePatterns": ["src/lib/defuddle-bundle.mjs"]
+}

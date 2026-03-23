@@ -233,16 +233,16 @@ export class IngestWorkflow extends WorkflowEntrypoint<Env, IngestParams> {
 export async function embedArticles(step: WorkflowStep, env: Env, feedId: number): Promise<void> {
   const toEmbed = await step.do("embed_query", async () => {
     const result = await env.DB.prepare(
-      `SELECT id, title, excerpt FROM active_articles
+      `SELECT id, title, full_text, excerpt FROM active_articles
        WHERE feed_id = ? AND embedded_at IS NULL AND title IS NOT NULL
        LIMIT 20`,
     )
       .bind(feedId)
-      .all<{ id: number; title: string; excerpt: string | null }>();
+      .all<{ id: number; title: string; full_text: string | null; excerpt: string | null }>();
     return result.results.map((a) => ({
       id: a.id,
       title: a.title,
-      excerpt: a.excerpt || "",
+      body: a.full_text || a.excerpt || "",
     }));
   });
 
@@ -258,7 +258,9 @@ export async function embedArticles(step: WorkflowStep, env: Env, feedId: number
         timeout: "2 minutes",
       },
       async () => {
-        const text = `${article.title} ${article.excerpt}`.trim();
+        // bge-m3 supports 8192 tokens; truncate body to ~6000 chars to stay within limit
+        const body = article.body.length > 6000 ? article.body.slice(0, 6000) : article.body;
+        const text = `${article.title} ${body}`.trim();
         const embedResult = await env.AI.run("@cf/baai/bge-m3", {
           text: [text],
         });

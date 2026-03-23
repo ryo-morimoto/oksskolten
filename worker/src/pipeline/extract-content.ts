@@ -13,14 +13,14 @@
  */
 
 // @ts-expect-error -- pre-bundled ESM, no type declarations
-import defuddleExports from '../lib/defuddle-bundle.mjs'
-const { Defuddle } = defuddleExports
+import defuddleExports from "../lib/defuddle-bundle.mjs";
+const { Defuddle } = defuddleExports;
 
 export interface ExtractedContent {
-  fullText: string | null
-  ogImage: string | null
-  excerpt: string | null
-  title: string | null
+  fullText: string | null;
+  ogImage: string | null;
+  excerpt: string | null;
+  title: string | null;
 }
 
 /**
@@ -30,27 +30,27 @@ export interface ExtractedContent {
 export async function extractContent(
   html: string,
   articleUrl: string,
-  options?: { fallbackContent?: string },
+  options?: { fallbackContent?: string | undefined },
 ): Promise<ExtractedContent> {
   if (!html || html.trim().length === 0) {
-    return fallbackResult(options?.fallbackContent)
+    return fallbackResult(options?.fallbackContent);
   }
 
   try {
-    const result = await Defuddle(html, articleUrl, { markdown: true })
+    const result = await Defuddle(html, articleUrl, { markdown: true });
 
-    const fullText = result.content || null
-    const ogImage = result.image && result.image.length > 0 ? result.image : null
-    const title = result.title && result.title.length > 0 ? result.title : null
+    const fullText = result.content || null;
+    const ogImage = result.image && result.image.length > 0 ? result.image : null;
+    const title = result.title && result.title.length > 0 ? result.title : null;
 
-    let excerpt: string | null = null
+    let excerpt: string | null = null;
     if (fullText) {
       const plain = fullText
-        .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
-        .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
-        .replace(/\s+/g, ' ')
-        .trim()
-      excerpt = plain.slice(0, 200).trim() || null
+        .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+        .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+        .replace(/\s+/g, " ")
+        .trim();
+      excerpt = plain.slice(0, 200).trim() || null;
     }
 
     if (!fullText || fullText.trim().length < 50) {
@@ -60,13 +60,13 @@ export async function extractContent(
           ogImage,
           excerpt: options.fallbackContent.slice(0, 200).trim() || null,
           title,
-        }
+        };
       }
     }
 
-    return { fullText, ogImage, excerpt, title }
+    return { fullText, ogImage, excerpt, title };
   } catch {
-    return fallbackResult(options?.fallbackContent)
+    return fallbackResult(options?.fallbackContent);
   }
 }
 
@@ -77,7 +77,7 @@ function fallbackResult(fallbackContent?: string): ExtractedContent {
       ogImage: null,
       excerpt: fallbackContent.slice(0, 200).trim() || null,
       title: null,
-    }
+    };
   }
-  return { fullText: null, ogImage: null, excerpt: null, title: null }
+  return { fullText: null, ogImage: null, excerpt: null, title: null };
 }

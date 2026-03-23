@@ -1,98 +1,83 @@
-import { Hono } from 'hono'
-import type { AppContext } from '../index'
+import { Hono } from "hono";
+import type { AppContext } from "../index";
 
+export const categoryRoutes = new Hono<AppContext>();
 
-export const categoryRoutes = new Hono<AppContext>()
-
-categoryRoutes.get('/categories', async (c) => {
+categoryRoutes.get("/categories", async (c) => {
   const result = await c.env.DB.prepare(
-    'SELECT * FROM categories ORDER BY sort_order ASC, name COLLATE NOCASE ASC',
-  ).all()
-  return c.json({ categories: result.results })
-})
+    "SELECT * FROM categories ORDER BY sort_order ASC, name COLLATE NOCASE ASC",
+  ).all();
+  return c.json({ categories: result.results });
+});
 
-categoryRoutes.post('/categories', async (c) => {
-  const body = await c.req.json<{ name?: string }>()
-  const name = body.name?.trim()
+categoryRoutes.post("/categories", async (c) => {
+  const body = await c.req.json<{ name?: string }>();
+  const name = body.name?.trim();
   if (!name) {
-    return c.json({ error: 'name is required' }, 400)
+    return c.json({ error: "name is required" }, 400);
   }
 
   const maxOrder = await c.env.DB.prepare(
-    'SELECT COALESCE(MAX(sort_order), -1) + 1 AS next FROM categories',
-  ).first<{ next: number }>()
+    "SELECT COALESCE(MAX(sort_order), -1) + 1 AS next FROM categories",
+  ).first<{ next: number }>();
 
   const created = await c.env.DB.prepare(
-    'INSERT INTO categories (name, sort_order) VALUES (?, ?) RETURNING *',
+    "INSERT INTO categories (name, sort_order) VALUES (?, ?) RETURNING *",
   )
     .bind(name, maxOrder!.next)
-    .first()
+    .first();
 
-  return c.json(created, 201)
-})
+  return c.json(created, 201);
+});
 
-categoryRoutes.patch('/categories/:id', async (c) => {
-  const id = Number(c.req.param('id'))
-  if (isNaN(id)) return c.json({ error: 'Invalid id' }, 400)
+categoryRoutes.patch("/categories/:id", async (c) => {
+  const id = Number(c.req.param("id"));
+  if (isNaN(id)) return c.json({ error: "Invalid id" }, 400);
 
   const body = await c.req.json<{
-    name?: string
-    sort_order?: number
-    collapsed?: number
-  }>()
+    name?: string;
+    sort_order?: number;
+    collapsed?: number;
+  }>();
 
-  const existing = await c.env.DB.prepare(
-    'SELECT * FROM categories WHERE id = ?',
-  )
-    .bind(id)
-    .first()
+  const existing = await c.env.DB.prepare("SELECT * FROM categories WHERE id = ?").bind(id).first();
 
-  if (!existing) return c.json({ error: 'Category not found' }, 404)
+  if (!existing) return c.json({ error: "Category not found" }, 404);
 
-  const sets: string[] = []
-  const values: unknown[] = []
+  const sets: string[] = [];
+  const values: unknown[] = [];
 
   if (body.name !== undefined) {
-    sets.push('name = ?')
-    values.push(body.name)
+    sets.push("name = ?");
+    values.push(body.name);
   }
   if (body.sort_order !== undefined) {
-    sets.push('sort_order = ?')
-    values.push(body.sort_order)
+    sets.push("sort_order = ?");
+    values.push(body.sort_order);
   }
   if (body.collapsed !== undefined) {
-    sets.push('collapsed = ?')
-    values.push(body.collapsed)
+    sets.push("collapsed = ?");
+    values.push(body.collapsed);
   }
 
-  if (sets.length === 0) return c.json(existing)
+  if (sets.length === 0) return c.json(existing);
 
-  values.push(id)
-  await c.env.DB.prepare(
-    `UPDATE categories SET ${sets.join(', ')} WHERE id = ?`,
-  )
+  values.push(id);
+  await c.env.DB.prepare(`UPDATE categories SET ${sets.join(", ")} WHERE id = ?`)
     .bind(...values)
-    .run()
+    .run();
 
-  const updated = await c.env.DB.prepare(
-    'SELECT * FROM categories WHERE id = ?',
-  )
-    .bind(id)
-    .first()
-  return c.json(updated)
-})
+  const updated = await c.env.DB.prepare("SELECT * FROM categories WHERE id = ?").bind(id).first();
+  return c.json(updated);
+});
 
-categoryRoutes.delete('/categories/:id', async (c) => {
-  const id = Number(c.req.param('id'))
-  if (isNaN(id)) return c.json({ error: 'Invalid id' }, 400)
+categoryRoutes.delete("/categories/:id", async (c) => {
+  const id = Number(c.req.param("id"));
+  if (isNaN(id)) return c.json({ error: "Invalid id" }, 400);
 
-  const result = await c.env.DB.prepare(
-    'DELETE FROM categories WHERE id = ?',
-  )
-    .bind(id)
-    .run()
+  const result = await c.env.DB.prepare("DELETE FROM categories WHERE id = ?").bind(id).run();
 
-  if (!result.meta.changes) return c.json({ error: 'Category not found' }, 404)
+  if (!result.meta.changes) return c.json({ error: "Category not found" }, 404);
 
-  return c.body(null, 204)
-})
+  return c.body(null, 204);
+});
