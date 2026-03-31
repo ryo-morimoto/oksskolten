@@ -140,7 +140,7 @@ export class IngestWorkflow extends WorkflowEntrypoint<Env, IngestParams> {
               chunk.map((item) =>
                 this.env.DB.prepare(
                   `INSERT OR IGNORE INTO articles (feed_id, title, url, excerpt, published_at)
-                 VALUES (?, ?, ?, ?, ?)`,
+                 VALUES (?, ?, ?, ?, COALESCE(?, datetime('now')))`,
                 ).bind(
                   feed.feedId,
                   item.title,

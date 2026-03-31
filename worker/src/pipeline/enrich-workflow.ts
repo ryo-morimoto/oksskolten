@@ -13,6 +13,51 @@ export interface EnrichParams {}
  */
 export class EnrichWorkflow extends WorkflowEntrypoint<Env, EnrichParams> {
   async run(_event: WorkflowEvent<EnrichParams>, step: WorkflowStep) {
+    // Step 0: re-extract — retry content extraction for articles still missing full_text
+    await step.do(
+      "re_extract",
+      {
+        retries: { limit: 1, delay: "5 second", backoff: "exponential" },
+        timeout: "2 minutes",
+      },
+      async () => {
+        const rows = await this.env.DB.prepare(
+          `SELECT id, url, excerpt FROM articles
+           WHERE full_text IS NULL AND url LIKE 'http%'
+           ORDER BY id ASC LIMIT 10`,
+        ).all<{ id: number; url: string; excerpt: string | null }>();
+
+        let extracted = 0;
+        for (const row of rows.results) {
+          try {
+            const res = await fetch(row.url, {
+              headers: { "User-Agent": "Mozilla/5.0 (compatible; Oksskolten/1.0)" },
+              signal: AbortSignal.timeout(10_000),
+            });
+            if (!res.ok) continue;
+            const html = await res.text();
+            const { extractContent } = await import("./extract-content");
+            const content = await extractContent(html, row.url, {
+              fallbackContent: row.excerpt ?? undefined,
+            });
+            if (content.fullText) {
+              await this.env.DB.prepare(
+                `UPDATE articles SET full_text = ?, og_image = ?,
+                        excerpt = COALESCE(?, excerpt), title = COALESCE(?, title)
+                 WHERE id = ?`,
+              )
+                .bind(content.fullText, content.ogImage, content.excerpt, content.title, row.id)
+                .run();
+              extracted++;
+            }
+          } catch {
+            // best-effort — skip and retry on next cron
+          }
+        }
+        return { attempted: rows.results.length, extracted };
+      },
+    );
+
     // Step 1: query pending articles (全フィード横断、古い順、50件で打ち切り)
     const articles = await step.do("query_pending", async () => {
       const result = await this.env.DB.prepare(

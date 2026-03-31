@@ -45,7 +45,8 @@ export function createMcpServer(env: Env): McpServer {
       const result = await db
         .prepare(
           `SELECT f.id, f.name, f.url, f.rss_url, f.type, f.disabled,
-                  f.category_id, f.error_count, f.last_error,
+                  f.category_id, f.error_count,
+                  SUBSTR(f.last_error, 1, 200) AS last_error,
                   c.name AS category_name,
                   COALESCE(ac.article_count, 0) AS article_count,
                   COALESCE(ac.unread_count, 0) AS unread_count
