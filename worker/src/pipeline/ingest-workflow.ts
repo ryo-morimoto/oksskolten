@@ -253,24 +253,21 @@ export class IngestWorkflow extends WorkflowEntrypoint<Env, IngestParams> {
  * Shared by full pipeline and skipped-fetch backfill paths.
  */
 export async function embedArticles(step: WorkflowStep, env: Env, feedId: number): Promise<void> {
-  const toEmbed = await step.do("embed_query", async () => {
+  // Return only IDs to stay well under the 1MiB step-output limit
+  const ids = await step.do("embed_query", async () => {
     const result = await env.DB.prepare(
-      `SELECT id, title, full_text, excerpt FROM active_articles
+      `SELECT id FROM active_articles
        WHERE feed_id = ? AND embedded_at IS NULL AND title IS NOT NULL
        LIMIT 20`,
     )
       .bind(feedId)
-      .all<{ id: number; title: string; full_text: string | null; excerpt: string | null }>();
-    return result.results.map((a) => ({
-      id: a.id,
-      title: a.title,
-      body: a.full_text || a.excerpt || "",
-    }));
+      .all<{ id: number }>();
+    return result.results.map((a) => a.id);
   });
 
-  for (const article of toEmbed) {
+  for (const id of ids) {
     await step.do(
-      `embed_${article.id}`,
+      `embed_${id}`,
       {
         retries: {
           limit: 2,
@@ -280,8 +277,17 @@ export async function embedArticles(step: WorkflowStep, env: Env, feedId: number
         timeout: "2 minutes",
       },
       async () => {
+        // Re-query article data inside the step (article may have been purged during replay)
+        const article = await env.DB.prepare(
+          "SELECT title, full_text, excerpt FROM articles WHERE id = ?",
+        )
+          .bind(id)
+          .first<{ title: string; full_text: string | null; excerpt: string | null }>();
+        if (!article) return { articleId: id, skipped: true };
+
         // bge-m3 supports 8192 tokens; truncate body to ~6000 chars to stay within limit
-        const body = article.body.length > 6000 ? article.body.slice(0, 6000) : article.body;
+        const rawBody = article.full_text || article.excerpt || "";
+        const body = rawBody.length > 6000 ? rawBody.slice(0, 6000) : rawBody;
         const text = `${article.title} ${body}`.trim();
         const embedResult = await env.AI.run("@cf/baai/bge-m3", {
           text: [text],
@@ -290,7 +296,7 @@ export async function embedArticles(step: WorkflowStep, env: Env, feedId: number
 
         await env.VECTORIZE.upsert([
           {
-            id: String(article.id),
+            id: String(id),
             values,
             metadata: { feed_id: feedId },
           },
@@ -299,10 +305,10 @@ export async function embedArticles(step: WorkflowStep, env: Env, feedId: number
         await env.DB.prepare(
           "UPDATE articles SET embedded_at = datetime('now') WHERE id = ? AND embedded_at IS NULL",
         )
-          .bind(article.id)
+          .bind(id)
           .run();
 
-        return { articleId: article.id };
+        return { articleId: id };
       },
     );
   }
@@ -346,9 +352,17 @@ async function recordFeedError(env: Env, feedId: number, error: string): Promise
     .first<{ error_count: number }>();
 
   if (feed && feed.error_count >= 3) {
-    const BACKOFF_BASE = 3600;
-    const MAX_BACKOFF = 4 * 3600;
-    const backoff = Math.min(MAX_BACKOFF, BACKOFF_BASE * (feed.error_count - 2));
+    // Escalating backoff: 1h-4h (3-5 errors), 24h (6-9), 72h (10+)
+    let backoff: number;
+    if (feed.error_count >= 10) {
+      backoff = 72 * 3600;
+    } else if (feed.error_count >= 6) {
+      backoff = 24 * 3600;
+    } else {
+      const BACKOFF_BASE = 3600;
+      const MAX_BACKOFF = 4 * 3600;
+      backoff = Math.min(MAX_BACKOFF, BACKOFF_BASE * (feed.error_count - 2));
+    }
     await env.DB.prepare("UPDATE feeds SET next_check_at = ? WHERE id = ?")
       .bind(sqliteFuture(backoff), feedId)
       .run();

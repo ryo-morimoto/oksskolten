@@ -14,6 +14,7 @@ export async function startIngestWorkflows(env: Env): Promise<number> {
      WHERE disabled = 0
        AND type = 'rss'
        AND rss_url IS NOT NULL
+       AND error_count < 10
        AND (next_check_at IS NULL OR next_check_at <= strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))`,
   ).all<{
     id: number;

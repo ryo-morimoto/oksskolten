@@ -44,18 +44,20 @@ export function createMcpServer(env: Env): McpServer {
     async () => {
       const result = await db
         .prepare(
-          `SELECT f.*, c.name AS category_name,
-          COALESCE(ac.article_count, 0) AS article_count,
-          COALESCE(ac.unread_count, 0) AS unread_count
-        FROM feeds f
-        LEFT JOIN categories c ON f.category_id = c.id
-        LEFT JOIN (
-          SELECT feed_id,
-            COUNT(*) AS article_count,
-            SUM(CASE WHEN seen_at IS NULL THEN 1 ELSE 0 END) AS unread_count
-          FROM active_articles GROUP BY feed_id
-        ) ac ON f.id = ac.feed_id
-        ORDER BY f.name COLLATE NOCASE`,
+          `SELECT f.id, f.name, f.url, f.rss_url, f.type, f.disabled,
+                  f.category_id, f.error_count, f.last_error,
+                  c.name AS category_name,
+                  COALESCE(ac.article_count, 0) AS article_count,
+                  COALESCE(ac.unread_count, 0) AS unread_count
+           FROM feeds f
+           LEFT JOIN categories c ON f.category_id = c.id
+           LEFT JOIN (
+             SELECT feed_id,
+               COUNT(*) AS article_count,
+               SUM(CASE WHEN seen_at IS NULL THEN 1 ELSE 0 END) AS unread_count
+             FROM active_articles GROUP BY feed_id
+           ) ac ON f.id = ac.feed_id
+           ORDER BY f.name COLLATE NOCASE`,
         )
         .all();
       return json(result.results);
@@ -151,7 +153,8 @@ export function createMcpServer(env: Env): McpServer {
       const result = await db
         .prepare(
           `SELECT a.id, a.feed_id, a.category_id, a.title, a.url, a.lang,
-                a.excerpt, a.quality_score, a.seen_at, a.read_at,
+                SUBSTR(a.excerpt, 1, 500) as excerpt,
+                a.quality_score, a.seen_at, a.read_at,
                 a.bookmarked_at, a.liked_at, a.published_at, a.fetched_at,
                 f.name as feed_name
          FROM active_articles a
@@ -346,15 +349,26 @@ export function createMcpServer(env: Env): McpServer {
         category_id: category_id !== undefined ? category_id : existing.category_id,
       };
 
+      // Reset error state when rss_url changes (feed is being "fixed")
+      const urlChanged = rss_url != null && rss_url !== existing.rss_url;
+
       const stmts = [
-        db
-          .prepare("UPDATE feeds SET name = ?, rss_url = ?, category_id = ? WHERE id = ?")
-          .bind(merged.name, merged.rss_url, merged.category_id, id),
+        urlChanged
+          ? db
+              .prepare(
+                "UPDATE feeds SET name = ?, rss_url = ?, category_id = ?, error_count = 0, last_error = NULL WHERE id = ?",
+              )
+              .bind(merged.name, merged.rss_url, merged.category_id, id)
+          : db
+              .prepare("UPDATE feeds SET name = ?, rss_url = ?, category_id = ? WHERE id = ?")
+              .bind(merged.name, merged.rss_url, merged.category_id, id),
       ];
 
       if (category_id !== undefined) {
         stmts.push(
-          db.prepare("UPDATE articles SET category_id = ? WHERE feed_id = ?").bind(merged.category_id, id),
+          db
+            .prepare("UPDATE articles SET category_id = ? WHERE feed_id = ?")
+            .bind(merged.category_id, id),
         );
       }
 

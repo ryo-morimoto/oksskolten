@@ -13,12 +13,12 @@ export interface EnrichParams {}
  */
 export class EnrichWorkflow extends WorkflowEntrypoint<Env, EnrichParams> {
   async run(_event: WorkflowEvent<EnrichParams>, step: WorkflowStep) {
-    // Step 1: query pending articles (全フィード横断、古い順)
+    // Step 1: query pending articles (全フィード横断、古い順、50件で打ち切り)
     const articles = await step.do("query_pending", async () => {
       const result = await this.env.DB.prepare(
         `SELECT id, title, full_text FROM articles
          WHERE title_tokens IS NULL AND full_text IS NOT NULL
-         ORDER BY id ASC LIMIT 100`,
+         ORDER BY id ASC LIMIT 50`,
       ).all<{ id: number; title: string; full_text: string }>();
       return result.results.map((a) => ({
         id: a.id,
@@ -27,29 +27,49 @@ export class EnrichWorkflow extends WorkflowEntrypoint<Env, EnrichParams> {
       }));
     });
 
-    // Step 2: tokenize — 1 article per step (Container DO deadlock avoidance)
+    if (articles.length === 0) return;
+
+    // Step 2: warm up the Container to absorb cold-start latency
+    await step.do(
+      "warmup_container",
+      { timeout: "2 minutes", retries: { limit: 2, delay: "10 second", backoff: "exponential" } },
+      async () => {
+        const container = getContainer(this.env.KUROMOJI_CONTAINER);
+        await tokenizeText(container, "ping");
+        return { ready: true };
+      },
+    );
+
+    // Step 3: tokenize — 1 article per step (Container DO deadlock avoidance)
+    let consecutiveFailures = 0;
     for (const article of articles) {
-      await step.do(
-        `tokenize_${article.id}`,
-        {
-          retries: { limit: 2, delay: "10 second", backoff: "exponential" },
-          timeout: "2 minutes",
-        },
-        async () => {
-          const container = getContainer(this.env.KUROMOJI_CONTAINER);
-          const titleData = await tokenizeText(container, article.title);
-          const fullTextData = await tokenizeText(container, article.fullText);
+      try {
+        await step.do(
+          `tokenize_${article.id}`,
+          {
+            retries: { limit: 2, delay: "10 second", backoff: "exponential" },
+            timeout: "2 minutes",
+          },
+          async () => {
+            const container = getContainer(this.env.KUROMOJI_CONTAINER);
+            const titleData = await tokenizeText(container, article.title);
+            const fullTextData = await tokenizeText(container, article.fullText);
 
-          await this.env.DB.prepare(
-            `UPDATE articles SET title_tokens = ?, full_text_tokens = ?
-             WHERE id = ? AND title_tokens IS NULL`,
-          )
-            .bind(titleData.tokens, fullTextData.tokens, article.id)
-            .run();
+            await this.env.DB.prepare(
+              `UPDATE articles SET title_tokens = ?, full_text_tokens = ?
+               WHERE id = ? AND title_tokens IS NULL`,
+            )
+              .bind(titleData.tokens, fullTextData.tokens, article.id)
+              .run();
 
-          return { articleId: article.id };
-        },
-      );
+            return { articleId: article.id };
+          },
+        );
+        consecutiveFailures = 0;
+      } catch {
+        consecutiveFailures++;
+        if (consecutiveFailures >= 5) break; // Container likely down — let next cron retry
+      }
     }
 
     // Step 3: compute_quality — batch all articles that were just tokenized (or missed previously)
