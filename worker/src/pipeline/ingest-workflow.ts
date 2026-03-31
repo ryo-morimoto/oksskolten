@@ -1,6 +1,7 @@
 import { WorkflowEntrypoint, type WorkflowStep, type WorkflowEvent } from "cloudflare:workers";
 import { parseRssXml } from "../lib/rss-parser";
 import { extractEmbedding } from "../lib/search";
+import { plainExcerpt } from "../lib/text";
 import {
   computeInterval,
   computeEmpiricalInterval,
@@ -101,14 +102,29 @@ export class IngestWorkflow extends WorkflowEntrypoint<Env, IngestParams> {
           return { skipped: true };
         }
 
-        // Parse
-        const items = await parseRssXml(xml, feed.rssUrl);
+        // Parse — catch failures so recordFeedError is called (Workflow retry alone won't update DB)
+        let items: Awaited<ReturnType<typeof parseRssXml>>;
+        try {
+          items = await parseRssXml(xml, feed.rssUrl);
+        } catch (e) {
+          await recordFeedError(
+            this.env,
+            feed.feedId,
+            e instanceof Error ? e.message : "Parse error",
+          );
+          return { skipped: true };
+        }
 
         // Compute schedule
         const empirical = computeEmpiricalInterval(items);
         const httpCache = parseHttpCacheInterval(res.headers);
         const rssTtl = parseRssTtl(xml);
         const interval = computeInterval(httpCache, rssTtl, empirical);
+
+        // Normalize URLs so raw-Unicode and percent-encoded forms match
+        for (const item of items) {
+          item.url = normalizeUrl(item.url);
+        }
 
         // Dedup + save — INSERT OR IGNORE (url UNIQUE = idempotent)
         const urls = items.map((i) => i.url);
@@ -125,7 +141,13 @@ export class IngestWorkflow extends WorkflowEntrypoint<Env, IngestParams> {
                 this.env.DB.prepare(
                   `INSERT OR IGNORE INTO articles (feed_id, title, url, excerpt, published_at)
                  VALUES (?, ?, ?, ?, ?)`,
-                ).bind(feed.feedId, item.title, item.url, item.excerpt ?? null, item.published_at),
+                ).bind(
+                  feed.feedId,
+                  item.title,
+                  item.url,
+                  plainExcerpt(item.excerpt),
+                  item.published_at,
+                ),
               ),
             );
           }
@@ -288,12 +310,21 @@ export async function embedArticles(step: WorkflowStep, env: Env, feedId: number
 
 // --- Utility functions ---
 
+/** Normalize a URL so that raw-Unicode and percent-encoded forms compare equal. */
+function normalizeUrl(raw: string): string {
+  try {
+    return new URL(raw).href;
+  } catch {
+    return raw;
+  }
+}
+
 async function getExistingUrls(env: Env, urls: string[]): Promise<Set<string>> {
   if (urls.length === 0) return new Set();
   const set = new Set<string>();
   const batchSize = 50;
   for (let i = 0; i < urls.length; i += batchSize) {
-    const chunk = urls.slice(i, i + batchSize);
+    const chunk = urls.slice(i, i + batchSize).map(normalizeUrl);
     const placeholders = chunk.map(() => "?").join(",");
     const result = await env.DB.prepare(`SELECT url FROM articles WHERE url IN (${placeholders})`)
       .bind(...chunk)
