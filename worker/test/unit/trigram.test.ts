@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { decomposeTrigrams } from "../../src/lib/trigram";
+import { decomposeTrigrams } from "../../server/lib/trigram";
 
 describe("decomposeTrigrams", () => {
   it("returns the term itself for 2-char strings", () => {

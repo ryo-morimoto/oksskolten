@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { env } from "cloudflare:workers";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { createMcpServer } from "../../src/mcp/server";
+import { createMcpServer } from "../../server/mcp/server";
 import { setupTestDb, seedFeed, seedArticle } from "../helpers";
 
 /** Create a connected MCP client+server pair for testing. */

@@ -15,7 +15,7 @@ export default defineConfig(async () => {
   return {
     plugins: [
       cloudflareTest({
-        main: './src/index.ts',
+        main: './server/index.ts',
         wrangler: {
           configPath: './wrangler.test.toml',
         },

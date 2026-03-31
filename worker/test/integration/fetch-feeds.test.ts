@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { env } from "cloudflare:workers";
 import { setupTestDb } from "../helpers";
-import { startIngestWorkflows } from "../../src/pipeline/scheduled";
+import { startIngestWorkflows } from "../../server/pipeline/scheduled";
 
 describe("startIngestWorkflows", () => {
   beforeEach(async () => {
@@ -29,12 +29,12 @@ describe("startIngestWorkflows", () => {
       "INSERT INTO feeds (name, url, rss_url, type, next_check_at) VALUES ('Future', 'https://d.com', 'https://d.com/rss', 'rss', strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '+1 hour'))",
     ).run();
 
-    const started = await startIngestWorkflows(env as unknown as import("../../src/index").Env);
+    const started = await startIngestWorkflows(env as unknown as import("../../server/index").Env);
     expect(started).toBe(1);
   });
 
   it("returns 0 when no feeds are due", async () => {
-    const started = await startIngestWorkflows(env as unknown as import("../../src/index").Env);
+    const started = await startIngestWorkflows(env as unknown as import("../../server/index").Env);
     expect(started).toBe(0);
   });
 });

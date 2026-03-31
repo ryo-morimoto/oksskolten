@@ -5,7 +5,7 @@ import {
   parseRssTtl,
   MIN_INTERVAL,
   MAX_INTERVAL,
-} from "../../src/lib/schedule";
+} from "../../server/lib/schedule";
 
 describe("computeInterval", () => {
   it("clamps to MIN_INTERVAL", () => {

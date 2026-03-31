@@ -1,7 +1,7 @@
 # Test-only wrangler config: excludes AI and Vectorize bindings
 # (they require remote access and cause TLS errors in workerd sandbox)
 name = "oksskolten"
-main = "src/index.ts"
+main = "server/index.ts"
 compatibility_date = "2026-03-10"
 compatibility_flags = ["nodejs_compat"]
 

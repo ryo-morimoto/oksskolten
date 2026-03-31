@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 import { applyD1Migrations } from "cloudflare:test";
-import { createApiApp } from "../src/index";
+import { createApiApp } from "../server/index";
 
 const DATA_TABLES = [
   "articles",

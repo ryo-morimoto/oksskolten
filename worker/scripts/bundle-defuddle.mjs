@@ -2,7 +2,7 @@ import { build } from 'esbuild'
 import { existsSync, statSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-const outfile = 'src/lib/defuddle-bundle.mjs'
+const outfile = 'server/lib/defuddle-bundle.mjs'
 const lockfile = resolve('node_modules/.package-lock.json')
 
 // Skip rebuild if bundle exists and is newer than lockfile (deps unchanged)
@@ -25,4 +25,4 @@ await build({
   minify: true,
 })
 
-console.log('Bundled defuddle/node → src/lib/defuddle-bundle.mjs')
+console.log('Bundled defuddle/node → server/lib/defuddle-bundle.mjs')
