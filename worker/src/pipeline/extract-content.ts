@@ -105,6 +105,26 @@ function extractBodyText(html: string): string | null {
   return text.length >= 50 ? text : null;
 }
 
+/**
+ * Extract a canonical URL from HTML if it differs from the given URL.
+ * Some sites (e.g. Ghost link-only portals) serve empty pages with a
+ * canonical pointing to the real article host.
+ */
+export function extractCanonicalUrl(html: string, currentUrl: string): string | null {
+  const match =
+    html.match(/<link[^>]*rel="canonical"[^>]*href="([^"]*)"/) ??
+    html.match(/<meta[^>]*property="og:url"[^>]*content="([^"]*)"/);
+  if (!match?.[1]) return null;
+  try {
+    const canonical = new URL(match[1]);
+    const current = new URL(currentUrl);
+    // Only follow if the host differs (same-host canonical is just self-referencing)
+    return canonical.host !== current.host ? canonical.href : null;
+  } catch {
+    return null;
+  }
+}
+
 function fallbackResult(fallbackContent?: string): ExtractedContent {
   if (fallbackContent) {
     return {

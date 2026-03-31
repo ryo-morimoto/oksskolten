@@ -190,11 +190,32 @@ export class IngestWorkflow extends WorkflowEntrypoint<Env, IngestParams> {
               });
               if (!pageRes.ok) continue;
 
-              const html = await pageRes.text();
-              const { extractContent } = await import("./extract-content");
-              const content = await extractContent(html, article.url, {
+              let html = await pageRes.text();
+              const { extractContent, extractCanonicalUrl } = await import("./extract-content");
+              let content = await extractContent(html, article.url, {
                 fallbackContent: article.excerpt ?? undefined,
               });
+
+              // If extraction failed, try the canonical URL (link-only portal pattern)
+              if (!content.fullText) {
+                const canonical = extractCanonicalUrl(html, article.url);
+                if (canonical) {
+                  try {
+                    const canonRes = await fetch(canonical, {
+                      headers: { "User-Agent": USER_AGENT },
+                      signal: AbortSignal.timeout(FETCH_TIMEOUT),
+                    });
+                    if (canonRes.ok) {
+                      html = await canonRes.text();
+                      content = await extractContent(html, canonical, {
+                        fallbackContent: article.excerpt ?? undefined,
+                      });
+                    }
+                  } catch {
+                    // canonical fetch failed — proceed without
+                  }
+                }
+              }
 
               if (content.fullText) {
                 await this.env.DB.prepare(

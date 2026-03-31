@@ -35,11 +35,33 @@ export class EnrichWorkflow extends WorkflowEntrypoint<Env, EnrichParams> {
               signal: AbortSignal.timeout(5_000),
             });
             if (!res.ok) continue;
-            const html = await res.text();
-            const { extractContent } = await import("./extract-content");
-            const content = await extractContent(html, row.url, {
+            let html = await res.text();
+            const { extractContent, extractCanonicalUrl } = await import("./extract-content");
+            let content = await extractContent(html, row.url, {
               fallbackContent: row.excerpt ?? undefined,
             });
+
+            // If extraction failed, try the canonical URL (link-only portal pattern)
+            if (!content.fullText) {
+              const canonical = extractCanonicalUrl(html, row.url);
+              if (canonical) {
+                try {
+                  const canonRes = await fetch(canonical, {
+                    headers: { "User-Agent": "Mozilla/5.0 (compatible; Oksskolten/1.0)" },
+                    signal: AbortSignal.timeout(5_000),
+                  });
+                  if (canonRes.ok) {
+                    html = await canonRes.text();
+                    content = await extractContent(html, canonical, {
+                      fallbackContent: row.excerpt ?? undefined,
+                    });
+                  }
+                } catch {
+                  // canonical fetch failed
+                }
+              }
+            }
+
             if (content.fullText) {
               await this.env.DB.prepare(
                 `UPDATE articles SET full_text = ?, og_image = ?,
