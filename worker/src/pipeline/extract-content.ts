@@ -54,6 +54,14 @@ export async function extractContent(
     }
 
     if (!fullText || fullText.trim().length < 50) {
+      // Defuddle couldn't find a content container — try raw body text as fallback.
+      // This handles pages with flat structure (no <article>/<main> wrapper).
+      const bodyText = extractBodyText(html);
+      if (bodyText && bodyText.length >= 50) {
+        const plainExcerpt =
+          bodyText.replace(/\s+/g, " ").trim().slice(0, 500).trim() || null;
+        return { fullText: bodyText, ogImage, excerpt: plainExcerpt, title };
+      }
       if (options?.fallbackContent) {
         return {
           fullText: options.fallbackContent,
@@ -68,6 +76,33 @@ export async function extractContent(
   } catch {
     return fallbackResult(options?.fallbackContent);
   }
+}
+
+/**
+ * Extract plain text from <body>, stripping nav/header/footer/script/style.
+ * Used when Defuddle fails to identify a content container.
+ */
+function extractBodyText(html: string): string | null {
+  // Remove only elements that never contain article text.
+  // Intentionally omit header/footer/nav/aside — some sites put content there.
+  let cleaned = html
+    .replace(/<(script|style|noscript)[^>]*>[\s\S]*?<\/\1>/gi, "")
+    .replace(/<!--[\s\S]*?-->/g, "");
+  // Extract body
+  const bodyMatch = cleaned.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+  if (!bodyMatch?.[1]) return null;
+  // Strip remaining tags and decode entities
+  const text = bodyMatch[1]
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return text.length >= 50 ? text : null;
 }
 
 function fallbackResult(fallbackContent?: string): ExtractedContent {

@@ -24,7 +24,7 @@ export class EnrichWorkflow extends WorkflowEntrypoint<Env, EnrichParams> {
         const rows = await this.env.DB.prepare(
           `SELECT id, url, excerpt FROM articles
            WHERE full_text IS NULL AND url LIKE 'http%'
-           ORDER BY id ASC LIMIT 10`,
+           ORDER BY id ASC LIMIT 20`,
         ).all<{ id: number; url: string; excerpt: string | null }>();
 
         let extracted = 0;
@@ -32,7 +32,7 @@ export class EnrichWorkflow extends WorkflowEntrypoint<Env, EnrichParams> {
           try {
             const res = await fetch(row.url, {
               headers: { "User-Agent": "Mozilla/5.0 (compatible; Oksskolten/1.0)" },
-              signal: AbortSignal.timeout(10_000),
+              signal: AbortSignal.timeout(5_000),
             });
             if (!res.ok) continue;
             const html = await res.text();
