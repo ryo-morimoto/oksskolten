@@ -71,6 +71,23 @@ articleRoutes.get("/articles", async (c) => {
   });
 });
 
+articleRoutes.get("/articles/by-url", async (c) => {
+  const url = c.req.query("url");
+  if (!url) return c.json({ error: "url query parameter is required" }, 400);
+
+  const article = await c.env.DB.prepare(
+    `SELECT a.*, f.name as feed_name
+     FROM active_articles a
+     LEFT JOIN feeds f ON a.feed_id = f.id
+     WHERE a.url = ?`,
+  )
+    .bind(url)
+    .first();
+
+  if (!article) return c.json({ error: "Article not found" }, 404);
+  return c.json(article);
+});
+
 articleRoutes.get("/articles/:id{[0-9]+}", async (c) => {
   const id = Number(c.req.param("id"));
   if (isNaN(id)) return c.json({ error: "Invalid id" }, 400);
