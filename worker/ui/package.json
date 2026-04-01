@@ -8,6 +8,8 @@
   },
   "dependencies": {
     "@modelcontextprotocol/ext-apps": "^1.2.2",
+    "@tailwindcss/typography": "^0.5.19",
+    "marked": "^17.0.5",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },

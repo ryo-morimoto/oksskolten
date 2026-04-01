@@ -7,7 +7,7 @@ export function App() {
   const [articles, setArticles] = useState<Article[]>([])
   const [total, setTotal] = useState(0)
   const [theme, setTheme] = useState<string>('light')
-  const [selectedArticleId, setSelectedArticleId] = useState<number | null>(null)
+  const [selectedArticle, setSelectedArticle] = useState<Article | null>(null)
 
   const { app, isConnected, error } = useApp({
     appInfo: { name: 'Oksskolten Articles', version: '0.2.0' },
@@ -40,13 +40,13 @@ export function App() {
   const themeClass = theme === 'dark' ? 'dark' : ''
 
   // Detail view
-  if (selectedArticleId != null) {
+  if (selectedArticle != null) {
     return (
       <div className={themeClass}>
         <ArticleDetail
-          id={selectedArticleId}
+          article={selectedArticle}
           app={app}
-          onBack={() => setSelectedArticleId(null)}
+          onBack={() => setSelectedArticle(null)}
         />
       </div>
     )
@@ -66,7 +66,7 @@ export function App() {
             <ArticleCard
               key={article.id}
               article={article}
-              onSelect={setSelectedArticleId}
+              onSelect={() => setSelectedArticle(article)}
             />
           ))}
         </div>

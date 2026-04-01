@@ -1,19 +1,22 @@
 import { type App } from '@modelcontextprotocol/ext-apps'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+import { marked } from 'marked'
 
 interface FullArticle {
+  full_text: string | null
+  excerpt: string | null
+}
+
+export interface ArticlePreview {
   id: number
   title: string
   url: string
   excerpt: string | null
-  full_text: string | null
   og_image: string | null
   feed_name: string | null
-  quality_score: number | null
   published_at: string | null
   seen_at: string | null
   bookmarked_at: string | null
-  liked_at: string | null
 }
 
 function formatDate(dateStr: string | null): string {
@@ -27,42 +30,41 @@ function formatDate(dateStr: string | null): string {
   }).format(new Date(dateStr))
 }
 
-export function ArticleDetail({ id, app, onBack }: { id: number; app: App | null; onBack: () => void }) {
-  const [article, setArticle] = useState<FullArticle | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [bookmarked, setBookmarked] = useState(false)
-  const [read, setRead] = useState(false)
+export function ArticleDetail({ article, app, onBack }: { article: ArticlePreview; app: App | null; onBack: () => void }) {
+  const [fullText, setFullText] = useState<string | null>(null)
+  const [loadingBody, setLoadingBody] = useState(true)
+  const [bookmarked, setBookmarked] = useState(!!article.bookmarked_at)
+  const [read, setRead] = useState(!!article.seen_at)
   const [acting, setActing] = useState(false)
   const [contextSent, setContextSent] = useState(false)
 
   useEffect(() => {
     if (!app) return
-    setLoading(true)
-    setError(null)
-    app.callServerTool({ name: 'get_article', arguments: { id } }).then((result) => {
-      if (result.isError) {
-        setError('Failed to load article')
-        return
-      }
+    setLoadingBody(true)
+    app.callServerTool({ name: 'get_article', arguments: { id: article.id } }).then((result) => {
+      if (result.isError) return
       const textItem = result.content?.find(
         (c): c is { type: 'text'; text: string } => c.type === 'text' && 'text' in c,
       )
       if (textItem) {
         const data = JSON.parse(textItem.text) as FullArticle
-        setArticle(data)
-        setBookmarked(!!data.bookmarked_at)
-        setRead(!!data.seen_at)
+        setFullText(data.full_text ?? data.excerpt)
       }
     }).catch(() => {
-      setError('Failed to load article')
+      // fall back to excerpt
     }).finally(() => {
-      setLoading(false)
+      setLoadingBody(false)
     })
-  }, [app, id])
+  }, [app, article.id])
+
+  const bodyHtml = useMemo(() => {
+    const raw = fullText ?? article.excerpt
+    if (!raw) return ''
+    return marked.parse(raw, { async: false }) as string
+  }, [fullText, article.excerpt])
 
   const handleBookmark = async () => {
-    if (!app || !article || acting) return
+    if (!app || acting) return
     setActing(true)
     try {
       await app.callServerTool({ name: 'toggle_bookmark', arguments: { id: article.id, bookmarked: !bookmarked } })
@@ -73,7 +75,7 @@ export function ArticleDetail({ id, app, onBack }: { id: number; app: App | null
   }
 
   const handleRead = async () => {
-    if (!app || !article || acting || read) return
+    if (!app || acting || read) return
     setActing(true)
     try {
       await app.callServerTool({ name: 'mark_as_read', arguments: { id: article.id } })
@@ -84,13 +86,13 @@ export function ArticleDetail({ id, app, onBack }: { id: number; app: App | null
   }
 
   const handleOpenOriginal = async () => {
-    if (!app || !article) return
+    if (!app) return
     await app.openLink({ url: article.url })
   }
 
   const handleDiscuss = async () => {
-    if (!app || !article) return
-    const body = article.full_text || article.excerpt || ''
+    if (!app) return
+    const body = fullText || article.excerpt || ''
     await app.updateModelContext({
       content: [{
         type: 'text',
@@ -98,18 +100,6 @@ export function ArticleDetail({ id, app, onBack }: { id: number; app: App | null
       }],
     })
     setContextSent(true)
-  }
-
-  if (loading) {
-    return <div className="p-6 text-sm text-gray-400">Loading article...</div>
-  }
-  if (error || !article) {
-    return (
-      <div className="p-6">
-        <button onClick={onBack} className="mb-4 text-sm text-blue-600 hover:underline dark:text-blue-400">{'\u2190'} Back</button>
-        <p className="text-sm text-red-500">{error || 'Article not found'}</p>
-      </div>
-    )
   }
 
   return (
@@ -147,9 +137,14 @@ export function ArticleDetail({ id, app, onBack }: { id: number; app: App | null
         )}
 
         {/* Body */}
-        <div className="mt-6 text-sm leading-relaxed text-gray-700 whitespace-pre-wrap dark:text-gray-300">
-          {article.full_text || article.excerpt || 'No content available.'}
-        </div>
+        {loadingBody && !fullText ? (
+          <div className="mt-6 text-sm text-gray-400">Loading full text...</div>
+        ) : (
+          <div
+            className="mt-6 prose prose-sm prose-gray dark:prose-invert max-w-none"
+            dangerouslySetInnerHTML={{ __html: bodyHtml }}
+          />
+        )}
 
         {/* Actions */}
         <div className="mt-8 flex flex-wrap items-center gap-2 border-t border-gray-200 pt-4 dark:border-gray-700">
