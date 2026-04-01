@@ -32,6 +32,7 @@ export type Env = {
   GITHUB_CLIENT_SECRET: string;
   GITHUB_ALLOWED_USERNAME: string;
   STORAGE: R2Bucket;
+  ASSETS?: Fetcher;
   ENVIRONMENT: string;
 };
 
@@ -89,8 +90,27 @@ const oauth = new OAuthProvider({
     async fetch(request: Request, env: Env, ctx: ExecutionContext) {
       const url = new URL(request.url);
       if (url.pathname.startsWith("/og/")) return handleOgImage(request, env, ctx);
+
+      // MCP OAuth routes
       if (url.pathname === "/authorize") return handleAuthorize(request, env);
       if (url.pathname === "/callback") return handleCallback(request, env);
+
+      // Blocklist: paths that should never get SPA fallback
+      if (
+        url.pathname.startsWith("/api/") ||
+        url.pathname === "/mcp" ||
+        url.pathname.startsWith("/.well-known/")
+      ) {
+        return new Response("Not found", { status: 404 });
+      }
+
+      // Serve static assets + SPA fallback
+      if (env.ASSETS) {
+        const asset = await env.ASSETS.fetch(request);
+        if (asset.status !== 404) return asset;
+        return env.ASSETS.fetch(new Request(new URL("/index.html", request.url), request));
+      }
+
       return new Response("Not found", { status: 404 });
     },
   },

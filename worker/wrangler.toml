@@ -56,3 +56,7 @@ bucket_name = "oksskolten"
 
 [vars]
 ENVIRONMENT = "production"
+
+[assets]
+binding = "ASSETS"
+directory = "./client/dist"
