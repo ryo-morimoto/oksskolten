@@ -1,5 +1,7 @@
 import { authHeaders, handleResponseError } from "./api-base";
 
+export { authHeaders };
+
 const DEFAULT_TIMEOUT = 30_000;
 
 /** SWR-compatible fetcher for GET requests. */
