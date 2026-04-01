@@ -8,6 +8,8 @@ import { articleRoutes } from "./routes/articles";
 import { opmlRoutes } from "./routes/opml";
 import { searchRoutes } from "./routes/search";
 import { handleAuthorize, handleCallback } from "./auth/github";
+import { handleBrowserLogin, handleBrowserCallback, handleBrowserExchange } from "./auth/browser";
+import { resolveExternalToken } from "./auth/jwt";
 import { startIngestWorkflows, startEnrichWorkflow } from "./pipeline/scheduled";
 import { McpApiHandler } from "./mcp/handler";
 
@@ -32,6 +34,7 @@ export type Env = {
   GITHUB_CLIENT_SECRET: string;
   GITHUB_ALLOWED_USERNAME: string;
   STORAGE: R2Bucket;
+  JWT_SECRET: string;
   ASSETS?: Fetcher;
   ENVIRONMENT: string;
 };
@@ -60,6 +63,12 @@ export function createApiApp(guard: MiddlewareHandler<AppContext>) {
   // Protected
   const protected_ = new Hono<AppContext>();
   protected_.use("/*", guard);
+
+  // /api/me — returns the authenticated user's identity.
+  // Works for both MCP OAuth tokens (props set by OAuthProvider) and
+  // browser JWTs (props set by resolveExternalToken).
+  protected_.get("/me", (c) => c.json({ login: c.env.GITHUB_ALLOWED_USERNAME }));
+
   protected_.route("/", feedRoutes);
   protected_.route("/", categoryRoutes);
   protected_.route("/", searchRoutes);
@@ -95,6 +104,13 @@ const oauth = new OAuthProvider({
       if (url.pathname === "/authorize") return handleAuthorize(request, env);
       if (url.pathname === "/callback") return handleCallback(request, env);
 
+      // Browser OAuth routes (outside /api/ prefix so they don't require a token)
+      if (url.pathname === "/auth/github/login") return handleBrowserLogin(request, env);
+      if (url.pathname === "/auth/github/callback") return handleBrowserCallback(request, env);
+      if (url.pathname === "/auth/github/exchange" && request.method === "POST") {
+        return handleBrowserExchange(request, env);
+      }
+
       // Static assets + SPA fallback
       // not_found_handling = "single-page-application" in wrangler.toml
       // automatically serves index.html for unmatched paths
@@ -102,6 +118,14 @@ const oauth = new OAuthProvider({
 
       return new Response("Not found", { status: 404 });
     },
+  },
+  // When a Bearer token doesn't match OAuthProvider's internal format
+  // (userId:grantId:secret), this callback is invoked to check if it's
+  // a browser JWT instead. Returns { props } on success, null on failure.
+  // Without this, OAuthProvider would reject all JWT-bearing requests with 401
+  // before they reach the Hono apiHandlers.
+  async resolveExternalToken({ token, env }) {
+    return resolveExternalToken(token, env as Env);
   },
   authorizeEndpoint: "/authorize",
   tokenEndpoint: "/token",
