@@ -71,6 +71,23 @@ categoryRoutes.patch("/categories/:id", async (c) => {
   return c.json(updated);
 });
 
+categoryRoutes.post("/categories/:id/mark-all-seen", async (c) => {
+  const id = Number(c.req.param("id"));
+  if (isNaN(id)) return c.json({ error: "Invalid id" }, 400);
+
+  const category = await c.env.DB.prepare("SELECT id FROM categories WHERE id = ?").bind(id).first();
+  if (!category) return c.json({ error: "Category not found" }, 404);
+
+  const result = await c.env.DB.prepare(
+    `UPDATE articles SET seen_at = datetime('now')
+     WHERE category_id = ? AND purged_at IS NULL AND seen_at IS NULL`,
+  )
+    .bind(id)
+    .run();
+
+  return c.json({ marked: result.meta.changes });
+});
+
 categoryRoutes.delete("/categories/:id", async (c) => {
   const id = Number(c.req.param("id"));
   if (isNaN(id)) return c.json({ error: "Invalid id" }, 400);

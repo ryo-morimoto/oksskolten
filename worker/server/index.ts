@@ -7,6 +7,8 @@ import { categoryRoutes } from "./routes/categories";
 import { articleRoutes } from "./routes/articles";
 import { opmlRoutes } from "./routes/opml";
 import { searchRoutes } from "./routes/search";
+import { settingsRoutes } from "./routes/settings";
+import { statsRoutes } from "./routes/stats";
 import { handleAuthorize, handleCallback } from "./auth/github";
 import { handleBrowserLogin, handleBrowserCallback, handleBrowserExchange } from "./auth/browser";
 import { resolveExternalToken } from "./auth/jwt";
@@ -74,6 +76,8 @@ export function createApiApp(guard: MiddlewareHandler<AppContext>) {
   protected_.route("/", searchRoutes);
   protected_.route("/", articleRoutes);
   protected_.route("/", opmlRoutes);
+  protected_.route("/", settingsRoutes);
+  protected_.route("/", statsRoutes);
   app.route("/api", protected_);
 
   return app;

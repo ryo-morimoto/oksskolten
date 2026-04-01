@@ -153,3 +153,25 @@ articleRoutes.post("/articles/:id{[0-9]+}/read", async (c) => {
   if (!result) return c.json({ error: "Article not found" }, 404);
   return c.json(result);
 });
+
+articleRoutes.post("/articles/batch-seen", async (c) => {
+  const body = await c.req.json<{ ids: number[] }>();
+  const { ids } = body;
+
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return c.json({ error: "ids must be a non-empty array" }, 400);
+  }
+  if (ids.length > 100) {
+    return c.json({ error: "ids must not exceed 100 items" }, 400);
+  }
+
+  const placeholders = ids.map(() => "?").join(", ");
+  const result = await c.env.DB.prepare(
+    `UPDATE articles SET seen_at = datetime('now')
+     WHERE id IN (${placeholders}) AND purged_at IS NULL AND seen_at IS NULL`,
+  )
+    .bind(...ids)
+    .run();
+
+  return c.json({ updated: result.meta.changes });
+});

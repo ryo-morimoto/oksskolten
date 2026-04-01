@@ -118,6 +118,23 @@ feedRoutes.patch("/feeds/:id", async (c) => {
   return c.json(updated);
 });
 
+feedRoutes.post("/feeds/:id/mark-all-seen", async (c) => {
+  const id = Number(c.req.param("id"));
+  if (isNaN(id)) return c.json({ error: "Invalid id" }, 400);
+
+  const feed = await c.env.DB.prepare("SELECT id FROM feeds WHERE id = ?").bind(id).first();
+  if (!feed) return c.json({ error: "Feed not found" }, 404);
+
+  const result = await c.env.DB.prepare(
+    `UPDATE articles SET seen_at = datetime('now')
+     WHERE feed_id = ? AND purged_at IS NULL AND seen_at IS NULL`,
+  )
+    .bind(id)
+    .run();
+
+  return c.json({ marked: result.meta.changes });
+});
+
 feedRoutes.delete("/feeds/:id", async (c) => {
   const id = Number(c.req.param("id"));
   if (isNaN(id)) return c.json({ error: "Invalid id" }, 400);
