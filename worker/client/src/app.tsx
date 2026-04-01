@@ -37,6 +37,7 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 
 const SettingsPage = lazy(() => import('./pages/settings-page').then(m => ({ default: m.SettingsPage })))
 const HomePage = lazy(() => import('./pages/home-page').then(m => ({ default: m.HomePage })))
+const ArticleListComponent = lazy(() => import('@/components/article/article-list').then(m => ({ default: m.ArticleList })))
 
 export interface AppLayoutContext {
   settings: Settings
@@ -135,7 +136,6 @@ export function useAppLayout() {
   return useOutletContext<AppLayoutContext>()
 }
 
-// Placeholder — article list pages implemented in Unit 5
 function ArticleListPage() {
   const { feedId, categoryId } = useParams<{ feedId?: string; categoryId?: string }>()
   const location = useLocation()
@@ -166,16 +166,15 @@ function ArticleListPage() {
                 : null
 
   return (
-    <PageLayout
-      feedName={headerName}
-    >
+    <PageLayout feedName={headerName}>
       {isInbox && <HintBanner storageKey="hint-dismissed-inbox">{t('hint.inbox')}</HintBanner>}
       {isBookmarks && <HintBanner storageKey="hint-dismissed-bookmarks">{t('hint.bookmarks')}</HintBanner>}
       {isLikes && <HintBanner storageKey="hint-dismissed-likes">{t('hint.likes')}</HintBanner>}
       {isHistory && <HintBanner storageKey="hint-dismissed-history">{t('hint.history')}</HintBanner>}
       {isClips && <HintBanner storageKey="hint-dismissed-clips">{t('hint.clips')}</HintBanner>}
-      {/* Article list — implemented in Unit 5 */}
-      <div className="p-4 text-muted text-sm">Article list coming soon (Unit 5)</div>
+      <Suspense>
+        <ArticleListComponent />
+      </Suspense>
     </PageLayout>
   )
 }

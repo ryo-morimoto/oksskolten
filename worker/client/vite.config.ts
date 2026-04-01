@@ -8,6 +8,10 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "src"),
+      // Resolve shared/ directory at repo root (../../ relative to worker/client/)
+      "../../shared": path.resolve(__dirname, "../../shared"),
+      "../../../shared": path.resolve(__dirname, "../../shared"),
+      "../../../../shared": path.resolve(__dirname, "../../shared"),
     },
   },
   build: {
