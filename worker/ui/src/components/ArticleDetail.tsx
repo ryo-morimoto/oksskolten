@@ -40,6 +40,11 @@ export function ArticleDetail({ article, app, onBack }: { article: ArticlePrevie
 
   useEffect(() => {
     if (!app) return
+    app.requestDisplayMode({ mode: 'fullscreen' }).catch(() => {})
+  }, [app])
+
+  useEffect(() => {
+    if (!app) return
     setLoadingBody(true)
     app.callServerTool({ name: 'get_article', arguments: { id: article.id } }).then((result) => {
       if (result.isError) return
@@ -96,8 +101,16 @@ export function ArticleDetail({ article, app, onBack }: { article: ArticlePrevie
     await app.updateModelContext({
       content: [{
         type: 'text',
-        text: `# ${article.title}\n\nSource: ${article.url}\nPublished: ${article.published_at || 'unknown'}\n\n${body}`,
+        text: body,
       }],
+      structuredContent: {
+        type: 'article',
+        id: article.id,
+        title: article.title,
+        url: article.url,
+        feed: article.feed_name,
+        published_at: article.published_at,
+      },
     })
     setContextSent(true)
   }

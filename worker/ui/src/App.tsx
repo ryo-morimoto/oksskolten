@@ -46,7 +46,10 @@ export function App() {
         <ArticleDetail
           article={selectedArticle}
           app={app}
-          onBack={() => setSelectedArticle(null)}
+          onBack={() => {
+            setSelectedArticle(null)
+            app?.requestDisplayMode({ mode: 'inline' }).catch(() => {})
+          }}
         />
       </div>
     )
