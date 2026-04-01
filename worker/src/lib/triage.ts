@@ -29,6 +29,8 @@ export interface RecommendOptions {
   category_id?: number | undefined;
   min_quality?: number | undefined;
   unread_only?: boolean | undefined;
+  after?: string | undefined;
+  before?: string | undefined;
 }
 
 /** Compute per-feed interest from engagement aggregates. */
@@ -116,6 +118,14 @@ export async function getRecommendedArticles(
   if (options.min_quality != null) {
     conditions.push("a.quality_score >= ?");
     binds.push(options.min_quality);
+  }
+  if (options.after != null) {
+    conditions.push("COALESCE(a.published_at, a.fetched_at) >= ?");
+    binds.push(options.after);
+  }
+  if (options.before != null) {
+    conditions.push("COALESCE(a.published_at, a.fetched_at) <= ?");
+    binds.push(options.before);
   }
 
   const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";

@@ -1,4 +1,3 @@
-import { type App } from '@modelcontextprotocol/ext-apps'
 import { useState } from 'react'
 
 export interface Article {
@@ -33,45 +32,19 @@ function qualityLabel(score: number | null): { text: string; color: string } | n
   return null
 }
 
-export function ArticleCard({ article, app }: { article: Article; app: App | null }) {
-  const [bookmarked, setBookmarked] = useState(!!article.bookmarked_at)
-  const [read, setRead] = useState(!!article.seen_at)
-  const [acting, setActing] = useState(false)
-
-  const handleBookmark = async (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    if (!app || acting) return
-    setActing(true)
-    try {
-      await app.callServerTool({ name: 'toggle_bookmark', arguments: { id: article.id, bookmarked: !bookmarked } })
-      setBookmarked(!bookmarked)
-    } finally {
-      setActing(false)
-    }
-  }
-
-  const handleRead = async (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    if (!app || acting || read) return
-    setActing(true)
-    try {
-      await app.callServerTool({ name: 'mark_as_read', arguments: { id: article.id } })
-      setRead(true)
-    } finally {
-      setActing(false)
-    }
-  }
+export function ArticleCard({ article, onSelect }: { article: Article; onSelect: (id: number) => void }) {
+  const [bookmarked] = useState(!!article.bookmarked_at)
+  const [read] = useState(!!article.seen_at)
 
   const badge = qualityLabel(article.quality_score)
 
   return (
-    <a
-      href={article.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className={`group flex overflow-hidden rounded-xl border border-gray-200 bg-white transition-shadow hover:shadow-md dark:border-gray-700 dark:bg-gray-800 ${read ? 'opacity-50' : ''}`}
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => onSelect(article.id)}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onSelect(article.id) }}
+      className={`group flex cursor-pointer overflow-hidden rounded-xl border border-gray-200 bg-white transition-shadow hover:shadow-md dark:border-gray-700 dark:bg-gray-800 ${read ? 'opacity-50' : ''}`}
     >
       {/* OG Image */}
       {article.og_image ? (
@@ -118,32 +91,20 @@ export function ArticleCard({ article, app }: { article: Article; app: App | nul
           )}
         </div>
 
-        {/* Actions */}
+        {/* Status indicators */}
         <div className="mt-3 flex items-center gap-2">
-          <button
-            onClick={handleBookmark}
-            disabled={acting}
-            className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors ${
-              bookmarked
-                ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
-                : 'bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600'
-            }`}
-          >
-            {bookmarked ? '\u2605' : '\u2606'} {bookmarked ? 'Saved' : 'Save'}
-          </button>
-          <button
-            onClick={handleRead}
-            disabled={acting || read}
-            className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors ${
-              read
-                ? 'bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500'
-                : 'bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600'
-            }`}
-          >
-            {read ? '\u2713 Read' : '\u25CB Mark read'}
-          </button>
+          {bookmarked && (
+            <span className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">
+              {'\u2605'} Saved
+            </span>
+          )}
+          {read && (
+            <span className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500">
+              {'\u2713'} Read
+            </span>
+          )}
         </div>
       </div>
-    </a>
+    </div>
   )
 }

@@ -552,6 +552,8 @@ export function createMcpServer(env: Env): McpServer {
         category_id: z.number().optional().describe("Filter to a specific category"),
         min_quality: z.number().min(0).max(1).optional().describe("Minimum quality score (0-1)"),
         unread_only: z.boolean().optional().describe("Only unread articles (default: true)"),
+        after: z.string().optional().describe("ISO 8601 datetime — only articles published after this"),
+        before: z.string().optional().describe("ISO 8601 datetime — only articles published before this"),
         limit: z.number().min(1).max(50).optional().describe("Number of results (default: 10)"),
         offset: z.number().min(0).optional().describe("Pagination offset"),
       },
@@ -563,6 +565,8 @@ export function createMcpServer(env: Env): McpServer {
         category_id: params.category_id,
         min_quality: params.min_quality,
         unread_only: params.unread_only,
+        after: params.after,
+        before: params.before,
         limit: params.limit ?? 10,
         offset: params.offset ?? 0,
       });
