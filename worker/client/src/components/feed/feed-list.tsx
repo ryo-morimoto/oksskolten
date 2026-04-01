@@ -25,7 +25,7 @@ import { CommandPalette } from '@/components/command-palette'
 import { useGlobalShortcuts } from '@/hooks/use-global-shortcuts'
 import { useAppLayout } from '@/app'
 import { extractDomain } from '@/lib/url'
-import type { FeedWithCounts, Category } from '../../../../shared/types'
+import type { FeedWithCounts, Category } from '@/types'
 
 function isFeedInactive(feed: FeedWithCounts): boolean {
   if (feed.article_count === 0) return false

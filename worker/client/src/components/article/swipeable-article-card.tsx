@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowRight } from 'lucide-react'
 import { ArticleCard, type ArticleDisplayConfig } from '@/components/article/article-card'
 import { articleUrlToPath } from '@/lib/url'
-import type { ArticleListItem } from '../../../../shared/types'
+import type { ArticleListItem } from '@/types'
 import type { LayoutName } from '@/data/layouts'
 
 interface SwipeableArticleCardProps extends ArticleDisplayConfig {

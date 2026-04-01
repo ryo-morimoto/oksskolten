@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import { apiPost, apiDelete } from '@/lib/fetcher'
-import type { FeedWithCounts } from '../../../shared/types'
+import type { FeedWithCounts } from '@/types'
 import type { KeyedMutator } from 'swr'
 import type { FetchResult } from '@/hooks/use-fetch-progress'
 

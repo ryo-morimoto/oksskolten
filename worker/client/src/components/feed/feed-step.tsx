@@ -5,7 +5,7 @@ import { useI18n } from '@/lib/i18n'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
-import type { Category } from '../../../../shared/types'
+import type { Category } from '@/types'
 
 type TranslateFn = ReturnType<typeof useI18n>['t']
 

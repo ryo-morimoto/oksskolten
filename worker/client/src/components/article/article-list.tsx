@@ -23,7 +23,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useKeyboardNavigationContext } from '@/contexts/keyboard-navigation-context'
 import { useKeyboardNavigation } from '@/hooks/use-keyboard-navigation'
 import { apiPatch } from '@/lib/fetcher'
-import type { ArticleListItem, FeedWithCounts } from '../../../../shared/types'
+import type { ArticleListItem, FeedWithCounts } from '@/types'
 import type { LayoutName } from '@/data/layouts'
 
 interface ArticlesResponse {

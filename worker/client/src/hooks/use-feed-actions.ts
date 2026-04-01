@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useSWRConfig } from 'swr'
 import { apiPost, apiPatch, apiDelete } from '@/lib/fetcher'
-import type { FeedWithCounts, Category } from '../../../shared/types'
+import type { FeedWithCounts, Category } from '@/types'
 import type { KeyedMutator } from 'swr'
 import type { FetchResult } from '@/hooks/use-fetch-progress'
 

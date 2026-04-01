@@ -4,7 +4,7 @@ import { useI18n } from '@/lib/i18n'
 import { isReadInSession } from '@/lib/readTracker'
 import { extractDomain, articleUrlToPath } from '@/lib/url'
 import { formatDate, formatRelativeDate } from '@/lib/dateFormat'
-import type { ArticleListItem } from '../../../../shared/types'
+import type { ArticleListItem } from '@/types'
 import type { LayoutName } from '@/data/layouts'
 
 export interface ArticleDisplayConfig {

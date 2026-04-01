@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSWRConfig } from 'swr'
 import { apiPatch, apiPost, apiDelete } from '@/lib/fetcher'
-import type { ArticleDetail } from '../../../shared/types'
+import type { ArticleDetail } from '@/types'
 
 export function useArticleActions(article: ArticleDetail | undefined, articleKey: string) {
   const navigate = useNavigate()

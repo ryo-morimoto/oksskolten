@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { fetcher } from '@/lib/fetcher'
 import { useI18n, isMessageKey } from '@/lib/i18n'
 import type { TranslateFn } from '@/lib/i18n'
-import type { FeedWithCounts } from '../../../shared/types'
+import type { FeedWithCounts } from '@/types'
 
 const RANDOM_GREETING_COUNT = 5
 

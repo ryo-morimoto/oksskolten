@@ -33,7 +33,7 @@ import {
   Monitor,
   Check,
 } from 'lucide-react'
-import type { FeedWithCounts, Category } from '../../../shared/types'
+import type { FeedWithCounts, Category } from '@/types'
 
 interface CommandPaletteProps {
   open: boolean

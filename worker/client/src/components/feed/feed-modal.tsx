@@ -7,7 +7,7 @@ import { Rss, FolderPlus, Globe, ChevronLeft, X } from 'lucide-react'
 import { FeedStep } from '@/components/feed/feed-step'
 import { FolderStep } from '@/components/feed/folder-step'
 import { ArticleStep } from '@/components/feed/article-step'
-import type { Category } from '../../../../shared/types'
+import type { Category } from '@/types'
 
 interface FeedModalProps {
   onClose: () => void
