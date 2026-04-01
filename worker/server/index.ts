@@ -95,21 +95,10 @@ const oauth = new OAuthProvider({
       if (url.pathname === "/authorize") return handleAuthorize(request, env);
       if (url.pathname === "/callback") return handleCallback(request, env);
 
-      // Blocklist: paths that should never get SPA fallback
-      if (
-        url.pathname.startsWith("/api/") ||
-        url.pathname === "/mcp" ||
-        url.pathname.startsWith("/.well-known/")
-      ) {
-        return new Response("Not found", { status: 404 });
-      }
-
-      // Serve static assets + SPA fallback
-      if (env.ASSETS) {
-        const asset = await env.ASSETS.fetch(request);
-        if (asset.status !== 404) return asset;
-        return env.ASSETS.fetch(new Request(new URL("/index.html", request.url), request));
-      }
+      // Static assets + SPA fallback
+      // not_found_handling = "single-page-application" in wrangler.toml
+      // automatically serves index.html for unmatched paths
+      if (env.ASSETS) return env.ASSETS.fetch(request);
 
       return new Response("Not found", { status: 404 });
     },
@@ -122,8 +111,23 @@ const oauth = new OAuthProvider({
   refreshTokenTTL: 2592000, // 30 days
 });
 
+// ── Public routes ────────────────────────────────────────────
+// OAuthProvider enforces auth on every request matching an apiHandlers prefix.
+// handleApiRequest() rejects requests without an Authorization header
+// immediately — resolveExternalToken is never invoked.
+// Therefore token-free endpoints (e.g. health) must be intercepted
+// before oauth.fetch() and routed directly to Hono.
+const publicApp = new Hono<AppContext>();
+publicApp.route("/api", healthRoute);
+
 export default {
-  fetch: (request: Request, env: Env, ctx: ExecutionContext) => oauth.fetch(request, env, ctx),
+  async fetch(request: Request, env: Env, ctx: ExecutionContext) {
+    const url = new URL(request.url);
+    if (url.pathname === "/api/health") {
+      return publicApp.fetch(request, env);
+    }
+    return oauth.fetch(request, env, ctx);
+  },
 
   async scheduled(_controller: ScheduledController, env: Env, _ctx: ExecutionContext) {
     const ingest = await startIngestWorkflows(env);
