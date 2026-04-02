@@ -11,6 +11,30 @@ export interface Theme {
   colors: ThemeColors
 }
 
+function isThemeColors(v: unknown): v is ThemeColors {
+  if (typeof v !== 'object' || v === null) return false
+  const o = v as Record<string, unknown>
+  return typeof o.light === 'object' && o.light !== null
+      && typeof o.dark  === 'object' && o.dark  !== null
+}
+
+function isTheme(v: unknown): v is Theme {
+  if (typeof v !== 'object' || v === null) return false
+  const o = v as Record<string, unknown>
+  return typeof o.name  === 'string'
+      && typeof o.label === 'string'
+      && (o.indicatorStyle === 'dot' || o.indicatorStyle === 'line')
+      && typeof o.highlight === 'string'
+      && isThemeColors(o.colors)
+}
+
+/** Parse a JSON string into Theme[]. Returns null if invalid. */
+export function parseCustomThemes(raw: string): Theme[] | null {
+  const parsed = JSON.parse(raw)
+  if (!Array.isArray(parsed) || !parsed.every(isTheme)) return null
+  return parsed
+}
+
 export const themes: Theme[] = [
   {
     name: 'default',

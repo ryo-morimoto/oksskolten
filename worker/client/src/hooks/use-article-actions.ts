@@ -23,7 +23,7 @@ export function useArticleActions(article: ArticleDetail | undefined, articleKey
   }, [article?.id])
 
   const revalidateLists = useCallback(() => {
-    void globalMutate((key: string) =>
+    void globalMutate((key: unknown) =>
       typeof key === 'string' && (
         key.includes('/api/feeds') ||
         key.includes('/api/articles')

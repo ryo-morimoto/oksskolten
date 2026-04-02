@@ -79,7 +79,7 @@ export function ArticleDetail({ articleUrl }: ArticleDetailProps) {
         trackRead(article.id)
       }
       apiPost(`/api/articles/${article.id}/read`)
-        .then(() => globalMutate((key: string) => typeof key === 'string' && key.startsWith('/api/feeds')))
+        .then(() => globalMutate((key: unknown) => typeof key === 'string' && key.startsWith('/api/feeds')))
         .catch(async () => {
           if (isFirstSeen) {
             await queueSeenIds([article.id])

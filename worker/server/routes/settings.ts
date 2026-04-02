@@ -72,7 +72,7 @@ settingsRoutes.get("/settings/profile", async (c) => {
   }>();
 
   return c.json({
-    login: c.env.GITHUB_ALLOWED_USERNAME,
+    account_name: c.env.GITHUB_ALLOWED_USERNAME,
     language: row?.value ?? null,
   });
 });

@@ -167,7 +167,7 @@ export function ArticleList() {
       )
       apiPatch(`/api/articles/${article.id}/bookmark`, { bookmarked: next })
         .then(() => {
-          void globalMutate((key: string) => typeof key === 'string' && key.startsWith('/api/feeds'))
+          void globalMutate((key: unknown) => typeof key === 'string' && key.startsWith('/api/feeds'))
         })
         .catch(() => {
           // Roll back on failure

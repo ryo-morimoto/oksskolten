@@ -5,7 +5,7 @@ const STORAGE_KEY = 'keybindings'
 
 const PRINTABLE_RE = /^[!-~]$/
 
-function isValidKeybindings(value: unknown): value is KeyBindings {
+export function isValidKeybindings(value: unknown): value is KeyBindings {
   if (typeof value !== 'object' || value === null) return false
   const obj = value as Record<string, unknown>
   return (

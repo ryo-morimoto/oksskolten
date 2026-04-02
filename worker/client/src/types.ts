@@ -62,14 +62,17 @@ export interface Article {
 export interface ArticleListItem {
   id: number
   feed_id: number
+  category_id: number | null
   feed_name: string
   title: string
   url: string
   published_at: string | null
+  fetched_at: string | null
   lang: string | null
   summary: string | null
   excerpt: string | null
   og_image: string | null
+  quality_score: number | null
   seen_at: string | null
   read_at: string | null
   bookmarked_at: string | null

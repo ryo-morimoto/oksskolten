@@ -15,9 +15,9 @@ import { useArticleFont } from './use-article-font'
 import { useLayout } from './use-layout'
 import { useMascot, type MascotChoice } from './use-mascot'
 import { useKeyboardNavSetting } from './use-keyboard-nav-setting'
-import { useKeybindingsSetting } from './use-keybindings-setting'
+import { useKeybindingsSetting, isValidKeybindings } from './use-keybindings-setting'
 import type { LayoutName } from '../data/layouts'
-import type { Theme } from '../data/themes'
+import { parseCustomThemes, type Theme } from '../data/themes'
 import { fetcher, apiPatch, authHeaders } from '../lib/fetcher'
 
 /** Debounce delay (ms) before syncing settings to backend */
@@ -151,7 +151,10 @@ export function useSettings() {
       { key: 'reading.keyboard_navigation', setter: setKeyboardNavigation, backfillRef: keyboardNavigationRef,
         validate: v => v === 'on' || v === 'off' },
       { key: 'reading.keybindings', setter: (v: string) => {
-        try { const parsed = JSON.parse(v); setKeybindings(parsed) } catch { /* ignore invalid JSON */ }
+        try {
+          const parsed = JSON.parse(v)
+          if (isValidKeybindings(parsed)) setKeybindings(parsed)
+        } catch { /* ignore invalid JSON */ }
       } },
       { key: 'appearance.highlight_theme', setter: setHighlightTheme },
       { key: 'appearance.font_family', setter: setArticleFont },
@@ -184,9 +187,11 @@ export function useSettings() {
     const raw = prefs['custom_themes']
     if (raw && !dirtyKeysRef.current.has('custom_themes')) {
       try {
-        const parsed = JSON.parse(raw) as Theme[]
-        setCustomThemesState(parsed)
-        localStorage.setItem('custom-themes', raw)
+        const parsed = parseCustomThemes(raw)
+        if (parsed) {
+          setCustomThemesState(parsed)
+          localStorage.setItem('custom-themes', raw)
+        }
       } catch { /* ignore malformed JSON from DB — keep existing localStorage themes */ }
     }
   }, [prefs])
