@@ -1,5 +1,5 @@
 import { useApp } from '@modelcontextprotocol/ext-apps/react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ArticleCard, type Article } from './components/ArticleCard'
 import { ArticleDetail } from './components/ArticleDetail'
 
@@ -34,6 +34,10 @@ export function App() {
     },
   })
 
+  useEffect(() => {
+    if (app) app.requestDisplayMode({ mode: 'fullscreen' }).catch(() => {})
+  }, [app])
+
   if (error) return <div className="p-4 text-sm text-red-500">Error: {error.message}</div>
   if (!isConnected) return <div className="p-6 text-sm text-gray-400">Connecting...</div>
 
@@ -46,10 +50,7 @@ export function App() {
         <ArticleDetail
           article={selectedArticle}
           app={app}
-          onBack={() => {
-            setSelectedArticle(null)
-            app?.requestDisplayMode({ mode: 'inline' }).catch(() => {})
-          }}
+          onBack={() => setSelectedArticle(null)}
         />
       </div>
     )

@@ -40,11 +40,6 @@ export function ArticleDetail({ article, app, onBack }: { article: ArticlePrevie
 
   useEffect(() => {
     if (!app) return
-    app.requestDisplayMode({ mode: 'fullscreen' }).catch(() => {})
-  }, [app])
-
-  useEffect(() => {
-    if (!app) return
     setLoadingBody(true)
     app.callServerTool({ name: 'get_article', arguments: { id: article.id } }).then((result) => {
       if (result.isError) return
