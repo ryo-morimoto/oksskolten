@@ -17,6 +17,14 @@ function json(data: unknown): ToolResult {
   return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
 }
 
+function ogImageUrl(ogImage: string | null, origin: string): string | null {
+  if (!ogImage) return null;
+  // og_image stores the R2 key (e.g. "og/123.jpg") — serve via Worker route
+  if (ogImage.startsWith("og/")) return `${origin}/api/${ogImage}`;
+  // Legacy: external URL not yet migrated to R2
+  return ogImage;
+}
+
 function error(message: string): ToolResult {
   return { content: [{ type: "text", text: message }], isError: true };
 }
@@ -25,7 +33,7 @@ function error(message: string): ToolResult {
  * Create and configure the MCP server with all tools.
  * A new instance is created per request (stateless Workers pattern).
  */
-export function createMcpServer(env: Env): McpServer {
+export function createMcpServer(env: Env, origin: string): McpServer {
   const server = new McpServer({
     name: "oksskolten",
     version: "0.1.0",
@@ -97,7 +105,9 @@ export function createMcpServer(env: Env): McpServer {
         .bind(id)
         .first();
       if (!article) return error("Article not found");
-      return json(article);
+      const row = article as Record<string, unknown>;
+      row.og_image = ogImageUrl(row.og_image as string | null, origin);
+      return json(row);
     },
   );
 
@@ -537,7 +547,18 @@ export function createMcpServer(env: Env): McpServer {
       mimeType: RESOURCE_MIME_TYPE,
     },
     async () => ({
-      contents: [{ uri: articlesResourceUri, mimeType: RESOURCE_MIME_TYPE, text: articlesHtml }],
+      contents: [
+        {
+          uri: articlesResourceUri,
+          mimeType: RESOURCE_MIME_TYPE,
+          text: articlesHtml,
+          _meta: {
+            ui: {
+              csp: { resourceDomains: [origin] },
+            },
+          },
+        },
+      ],
     }),
   );
 
@@ -570,7 +591,14 @@ export function createMcpServer(env: Env): McpServer {
         limit: params.limit ?? 10,
         offset: params.offset ?? 0,
       });
-      return json(result);
+      const proxied = {
+        ...result,
+        articles: result.articles.map((a) => ({
+          ...a,
+          og_image: ogImageUrl(a.og_image, origin),
+        })),
+      };
+      return json(proxied);
     },
   );
 

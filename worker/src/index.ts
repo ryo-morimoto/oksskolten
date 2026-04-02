@@ -1,6 +1,7 @@
 import { OAuthProvider, type OAuthHelpers } from "@cloudflare/workers-oauth-provider";
 import { Hono } from "hono";
 import { healthRoute } from "./routes/health";
+import { imageProxyRoute } from "./routes/image-proxy";
 import { feedRoutes } from "./routes/feeds";
 import { categoryRoutes } from "./routes/categories";
 import { articleRoutes } from "./routes/articles";
@@ -30,7 +31,7 @@ export type Env = {
   GITHUB_CLIENT_ID: string;
   GITHUB_CLIENT_SECRET: string;
   GITHUB_ALLOWED_USERNAME: string;
-  // STORAGE: R2Bucket   // future
+  STORAGE: R2Bucket;
   ENVIRONMENT: string;
 };
 
@@ -47,6 +48,7 @@ export function createApiApp(guard: MiddlewareHandler<AppContext>) {
 
   // Public
   app.route("/api", healthRoute);
+  app.route("/api", imageProxyRoute);
 
   // Protected
   const protected_ = new Hono<AppContext>();
@@ -94,12 +96,12 @@ const oauth = new OAuthProvider({
 });
 
 export default {
-  fetch: (request: Request, env: Env, ctx: ExecutionContext) =>
-    oauth.fetch(request, env, ctx),
+  fetch: (request: Request, env: Env, ctx: ExecutionContext) => oauth.fetch(request, env, ctx),
 
   async scheduled(_controller: ScheduledController, env: Env, _ctx: ExecutionContext) {
     const ingest = await startIngestWorkflows(env);
     const enrich = await startEnrichWorkflow(env);
+    // eslint-disable-next-line no-console -- TODO: replace with typed Logger (B4)
     console.log(`[cron] ingest=${ingest} enrich=${enrich}`);
   },
 } satisfies ExportedHandler<Env>;

@@ -7,7 +7,7 @@ import { setupTestDb, seedFeed, seedArticle } from "../helpers";
 
 /** Create a connected MCP client+server pair for testing. */
 async function createTestClient() {
-  const server = createMcpServer(env as never);
+  const server = createMcpServer(env as never, "http://localhost:8787");
   const client = new Client({ name: "test-client", version: "0.1.0" });
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   await server.connect(serverTransport);

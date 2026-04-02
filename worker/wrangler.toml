@@ -50,10 +50,9 @@ binding = "AI"
 binding = "OAUTH_KV"
 id = "904d9fafb8374e308b9c7cc9f55f3a93"
 
-# Future: R2 bucket (image archival)
-# [[r2_buckets]]
-# binding = "STORAGE"
-# bucket_name = "oksskolten"
+[[r2_buckets]]
+binding = "STORAGE"
+bucket_name = "oksskolten"
 
 [vars]
 ENVIRONMENT = "production"

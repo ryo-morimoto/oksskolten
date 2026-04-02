@@ -37,6 +37,10 @@ class_name = "KuromojiContainer"
 tag = "v1"
 new_sqlite_classes = ["KuromojiContainer"]
 
+[[r2_buckets]]
+binding = "STORAGE"
+bucket_name = "oksskolten"
+
 # OAuth KV (in-memory for tests via Miniflare)
 [[kv_namespaces]]
 binding = "OAUTH_KV"
