@@ -1,13 +1,13 @@
 import * as DialogPrimitive from '@radix-ui/react-dialog'
 import { X } from 'lucide-react'
 import { Dialog, DialogPortal, DialogOverlay, DialogTitle } from '@/components/ui/dialog'
+import { ArticleDetail } from './article-detail'
 
 interface ArticleOverlayProps {
   articleUrl: string | null
   onClose: () => void
 }
 
-// ArticleDetail is implemented in Unit 6. This overlay will be wired up then.
 export function ArticleOverlay({ articleUrl, onClose }: ArticleOverlayProps) {
   return (
     <Dialog open={!!articleUrl} onOpenChange={(open) => { if (!open) onClose() }}>
@@ -29,12 +29,7 @@ export function ArticleOverlay({ articleUrl, onClose }: ArticleOverlayProps) {
               <X className="w-5 h-5 text-muted" />
             </button>
           </div>
-          {/* ArticleDetail placeholder — implemented in Unit 6 */}
-          {articleUrl && (
-            <div className="p-4 text-muted text-sm">
-              {articleUrl}
-            </div>
-          )}
+          {articleUrl && <ArticleDetail articleUrl={articleUrl} />}
         </DialogPrimitive.Content>
       </DialogPortal>
     </Dialog>

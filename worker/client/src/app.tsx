@@ -38,6 +38,7 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 const SettingsPage = lazy(() => import('./pages/settings-page').then(m => ({ default: m.SettingsPage })))
 const HomePage = lazy(() => import('./pages/home-page').then(m => ({ default: m.HomePage })))
 const ArticleListComponent = lazy(() => import('@/components/article/article-list').then(m => ({ default: m.ArticleList })))
+const ArticleDetailComponent = lazy(() => import('@/components/article/article-detail').then(m => ({ default: m.ArticleDetail })))
 
 export interface AppLayoutContext {
   settings: Settings
@@ -199,7 +200,6 @@ function HomePageWrapper() {
   )
 }
 
-// Placeholder — article detail implemented in Unit 6
 function ArticleDetailPage() {
   const { '*': splat } = useParams()
   if (!splat) return null
@@ -207,10 +207,9 @@ function ArticleDetailPage() {
   return (
     <>
       <Header mode="detail" />
-      {/* Article detail — implemented in Unit 6 */}
-      <div className="p-4 text-muted text-sm">
-        Article detail coming soon (Unit 6) — {articleUrl}
-      </div>
+      <Suspense>
+        <ArticleDetailComponent articleUrl={articleUrl} />
+      </Suspense>
     </>
   )
 }
