@@ -10,6 +10,7 @@ import {
   sqliteFuture,
   DEFAULT_INTERVAL,
 } from "../lib/schedule";
+import { uploadOgImage } from "../lib/og-image";
 import type { Env } from "../index";
 
 const USER_AGENT = "Mozilla/5.0 (compatible; Oksskolten/1.0)";
@@ -367,47 +368,6 @@ async function getExistingUrls(env: Env, urls: string[]): Promise<Set<string>> {
     for (const row of result.results) set.add(row.url);
   }
   return set;
-}
-
-const IMAGE_CONTENT_TYPES = new Set([
-  "image/jpeg",
-  "image/png",
-  "image/gif",
-  "image/webp",
-  "image/svg+xml",
-]);
-const OG_MAX_SIZE = 2 * 1024 * 1024; // 2 MB
-
-/** Download og_image and upload to R2. Returns the R2 key or null on failure. */
-async function uploadOgImage(
-  storage: R2Bucket,
-  articleId: number,
-  imageUrl: string,
-): Promise<string | null> {
-  try {
-    const res = await fetch(imageUrl, {
-      headers: { "User-Agent": USER_AGENT },
-      signal: AbortSignal.timeout(10_000),
-      redirect: "follow",
-    });
-    if (!res.ok || !res.body) return null;
-
-    const contentType = res.headers.get("content-type")?.split(";")[0]?.trim() ?? "";
-    if (!IMAGE_CONTENT_TYPES.has(contentType)) return null;
-
-    const contentLength = Number(res.headers.get("content-length") ?? 0);
-    if (contentLength > OG_MAX_SIZE) return null;
-
-    const ext = contentType.split("/")[1]?.replace("svg+xml", "svg") ?? "jpg";
-    const key = `og/${articleId}.${ext}`;
-
-    await storage.put(key, res.body, {
-      httpMetadata: { contentType },
-    });
-    return key;
-  } catch {
-    return null;
-  }
 }
 
 async function recordFeedError(env: Env, feedId: number, error: string): Promise<void> {

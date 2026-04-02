@@ -3,6 +3,7 @@ import { getContainer } from "@cloudflare/containers";
 import { tokenizeText } from "../container/kuromoji";
 import { decomposeTrigrams } from "../lib/trigram";
 import { computeQualityScore } from "../lib/quality";
+import { uploadOgImage } from "../lib/og-image";
 import type { Env } from "../index";
 
 export interface EnrichParams {}
@@ -63,12 +64,16 @@ export class EnrichWorkflow extends WorkflowEntrypoint<Env, EnrichParams> {
             }
 
             if (content.fullText) {
+              let ogImageKey: string | null = null;
+              if (content.ogImage) {
+                ogImageKey = await uploadOgImage(this.env.STORAGE, row.id, content.ogImage);
+              }
               await this.env.DB.prepare(
                 `UPDATE articles SET full_text = ?, og_image = ?,
                         excerpt = COALESCE(?, excerpt), title = COALESCE(?, title)
                  WHERE id = ?`,
               )
-                .bind(content.fullText, content.ogImage, content.excerpt, content.title, row.id)
+                .bind(content.fullText, ogImageKey, content.excerpt, content.title, row.id)
                 .run();
               extracted++;
             }
