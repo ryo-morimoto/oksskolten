@@ -31,6 +31,46 @@ export interface RecommendOptions {
   unread_only?: boolean | undefined;
   after?: string | undefined;
   before?: string | undefined;
+  timezone?: string | undefined;
+}
+
+/** Normalize a datetime string to UTC ISO format using the given timezone. */
+function toUtc(datetime: string, timezone?: string): string {
+  // Already has timezone offset or Z — parse directly
+  if (/[Zz]|[+-]\d{2}:?\d{2}$/.test(datetime)) {
+    return new Date(datetime).toISOString();
+  }
+  // Date-only (e.g. "2026-04-02") or naive datetime — interpret in the given timezone
+  if (timezone) {
+    // Append T00:00:00 if date-only
+    const naive = datetime.includes("T") ? datetime : `${datetime}T00:00:00`;
+    // Format in the target timezone to find the UTC offset
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+      timeZoneName: "shortOffset",
+    });
+    // Parse the naive datetime as if it were in UTC, then adjust
+    const asUtc = new Date(naive + "Z");
+    const parts = formatter.formatToParts(asUtc);
+    const offsetStr = parts.find((p) => p.type === "timeZoneName")?.value ?? "";
+    // offsetStr is like "GMT+9" or "GMT-5:30"
+    const match = offsetStr.match(/GMT([+-]?\d+)(?::(\d+))?/);
+    if (match) {
+      const hours = parseInt(match[1]!, 10);
+      const mins = parseInt(match[2] ?? "0", 10);
+      const offsetMs = (hours * 60 + (hours < 0 ? -mins : mins)) * 60_000;
+      return new Date(new Date(naive + "Z").getTime() - offsetMs).toISOString();
+    }
+  }
+  // Fallback: treat as UTC
+  return new Date(datetime).toISOString();
 }
 
 /** Compute per-feed interest from engagement aggregates. */
@@ -121,11 +161,11 @@ export async function getRecommendedArticles(
   }
   if (options.after != null) {
     conditions.push("COALESCE(a.published_at, a.fetched_at) >= ?");
-    binds.push(options.after);
+    binds.push(toUtc(options.after, options.timezone));
   }
   if (options.before != null) {
     conditions.push("COALESCE(a.published_at, a.fetched_at) <= ?");
-    binds.push(options.before);
+    binds.push(toUtc(options.before, options.timezone));
   }
 
   const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
