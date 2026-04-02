@@ -23,13 +23,13 @@ import { useSettings, type Settings } from '@/hooks/use-settings'
 import { fetcher } from '@/lib/fetcher'
 import { LocaleContext, APP_NAME, type Locale, useI18n } from '@/lib/i18n'
 import { MD_BREAKPOINT } from '@/lib/breakpoints'
-import { useIsTouchDevice } from '@/hooks/use-is-touch-device'
 import { saveScrollPosition, restoreScrollPosition } from '@/hooks/use-scroll-restoration'
+import { pathToArticleUrl } from '@/lib/url'
 import { useSwipeDrawer } from '@/hooks/use-swipe-drawer'
 import { Header } from '@/components/layout/header'
 import { PageLayout } from '@/components/layout/page-layout'
 import { HintBanner } from '@/components/ui/hint-banner'
-import { AuthShell } from '@/lib/auth-shell'
+import { AuthGate } from '@/components/auth/auth-gate'
 import { ErrorBoundary } from '@/components/auth/error-boundary'
 import { Toaster } from 'sonner'
 import { FetchProgressProvider } from '@/contexts/fetch-progress-context'
@@ -203,7 +203,7 @@ function HomePageWrapper() {
 function ArticleDetailPage() {
   const { '*': splat } = useParams()
   if (!splat) return null
-  const articleUrl = `https://${decodeURIComponent(splat)}`
+  const articleUrl = pathToArticleUrl(splat)
   return (
     <>
       <Header mode="detail" />
@@ -246,7 +246,6 @@ function getPageType(pathname: string): 'detail' | 'list' {
 
 function AppRoutes() {
   const location = useLocation()
-  const isTouchDevice = useIsTouchDevice()
   const pageType = getPageType(location.pathname)
 
   // Save scroll position when navigating away from a page
@@ -257,8 +256,6 @@ function AppRoutes() {
       prevPathname.current = location.pathname
     }
   }, [location.pathname])
-
-  void isTouchDevice // used in Unit 8 for animated transitions
 
   return (
     <>
@@ -294,9 +291,9 @@ export default function App() {
     }}>
       <BrowserRouter>
         <ErrorBoundary>
-          <AuthShell>
+          <AuthGate>
             <AppRoutes />
-          </AuthShell>
+          </AuthGate>
         </ErrorBoundary>
       </BrowserRouter>
     </SWRConfig>

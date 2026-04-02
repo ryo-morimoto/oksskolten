@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, useImperativeHandle, forwardRef, useMemo } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import useSWR from 'swr'
 import useSWRInfinite from 'swr/infinite'
@@ -23,6 +23,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useKeyboardNavigationContext } from '@/contexts/keyboard-navigation-context'
 import { useKeyboardNavigation } from '@/hooks/use-keyboard-navigation'
 import { apiPatch } from '@/lib/fetcher'
+import { articleUrlToPath } from '@/lib/url'
 import type { ArticleListItem, FeedWithCounts } from '@/types'
 import type { LayoutName } from '@/data/layouts'
 
@@ -39,11 +40,7 @@ const PAGE_SIZE = 20
 /** How often (ms) to flush the batch of read article IDs to the server */
 const BATCH_FLUSH_INTERVAL = 1500
 
-export interface ArticleListHandle {
-  revalidate: () => void
-}
-
-export const ArticleList = forwardRef<ArticleListHandle, object>(function ArticleList(_props, ref) {
+export function ArticleList() {
   const location = useLocation()
   const navigate = useNavigate()
   const { feedId: feedIdParam, categoryId: categoryIdParam } = useParams<{ feedId?: string; categoryId?: string }>()
@@ -103,10 +100,6 @@ export const ArticleList = forwardRef<ArticleListHandle, object>(function Articl
     },
   )
 
-  useImperativeHandle(ref, () => ({
-    revalidate: () => mutate(),
-  }), [mutate])
-
   const articles = useMemo(() => data ? data.flatMap(page => page.articles) : [], [data])
   const hasMore = data ? data[data.length - 1]?.has_more ?? false : false
   const isEmpty = data?.[0]?.articles.length === 0
@@ -150,7 +143,7 @@ export const ArticleList = forwardRef<ArticleListHandle, object>(function Articl
     onEnter: isOverlayMode ? undefined : (id) => {
       // Page mode: Enter to navigate
       const article = articleMap.get(id)
-      if (article) void navigate(`/${encodeURIComponent(article.url)}`)
+      if (article) void navigate(articleUrlToPath(article.url))
     },
     onEscape: () => {
       if (escapeDebounceRef.current) return
@@ -519,7 +512,7 @@ export const ArticleList = forwardRef<ArticleListHandle, object>(function Articl
       }} />
     </main>
   )
-})
+}
 
 function ArticleListSkeleton({ layout = 'list', count = 3, showThumbnails = true }: { layout?: LayoutName; count?: number; showThumbnails?: boolean }) {
   if (layout === 'compact') {

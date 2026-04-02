@@ -24,13 +24,13 @@ describe("GET /api/settings/preferences", () => {
   });
 
   it("returns all settings as key-value pairs", async () => {
-    await env.DB.prepare("INSERT INTO settings (key, value) VALUES ('theme', 'dark')").run();
+    await env.DB.prepare("INSERT INTO settings (key, value) VALUES ('appearance.color_theme', 'dark')").run();
     await env.DB.prepare("INSERT INTO settings (key, value) VALUES ('language', 'ja')").run();
 
     const res = await api("/settings/preferences");
     expect(res.status).toBe(200);
     const body = await res.json<Record<string, string | null>>();
-    expect(body.theme).toBe("dark");
+    expect(body["appearance.color_theme"]).toBe("dark");
     expect(body.language).toBe("ja");
   });
 });
@@ -42,35 +42,35 @@ describe("PATCH /api/settings/preferences", () => {
 
   it("upserts new key-value pairs", async () => {
     const res = await jsonApi("/settings/preferences", "PATCH", {
-      theme: "light",
+      "appearance.color_theme": "light",
       language: "en",
     });
     expect(res.status).toBe(200);
     const body = await res.json<Record<string, string | null>>();
-    expect(body.theme).toBe("light");
+    expect(body["appearance.color_theme"]).toBe("light");
     expect(body.language).toBe("en");
   });
 
   it("updates existing keys", async () => {
-    await env.DB.prepare("INSERT INTO settings (key, value) VALUES ('theme', 'dark')").run();
+    await env.DB.prepare("INSERT INTO settings (key, value) VALUES ('appearance.color_theme', 'dark')").run();
 
-    const res = await jsonApi("/settings/preferences", "PATCH", { theme: "light" });
+    const res = await jsonApi("/settings/preferences", "PATCH", { "appearance.color_theme": "light" });
     expect(res.status).toBe(200);
     const body = await res.json<Record<string, string | null>>();
-    expect(body.theme).toBe("light");
+    expect(body["appearance.color_theme"]).toBe("light");
 
-    const row = await env.DB.prepare("SELECT COUNT(*) AS cnt FROM settings WHERE key = 'theme'")
+    const row = await env.DB.prepare("SELECT COUNT(*) AS cnt FROM settings WHERE key = 'appearance.color_theme'")
       .first<{ cnt: number }>();
     expect(row?.cnt).toBe(1);
   });
 
   it("returns all current settings after partial update", async () => {
-    await env.DB.prepare("INSERT INTO settings (key, value) VALUES ('theme', 'dark')").run();
+    await env.DB.prepare("INSERT INTO settings (key, value) VALUES ('appearance.color_theme', 'dark')").run();
     await env.DB.prepare("INSERT INTO settings (key, value) VALUES ('language', 'ja')").run();
 
-    const res = await jsonApi("/settings/preferences", "PATCH", { theme: "light" });
+    const res = await jsonApi("/settings/preferences", "PATCH", { "appearance.color_theme": "light" });
     const body = await res.json<Record<string, string | null>>();
-    expect(body.theme).toBe("light");
+    expect(body["appearance.color_theme"]).toBe("light");
     expect(body.language).toBe("ja");
   });
 });

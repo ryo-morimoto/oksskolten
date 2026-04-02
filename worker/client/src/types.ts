@@ -1,5 +1,4 @@
-// Shared type definitions for Feed, Category, Article and related types.
-// Canonical source of truth — server/db.ts re-exports these.
+// Client-side type definitions for Feed, Category, Article and related types.
 
 export interface Category {
   id: number

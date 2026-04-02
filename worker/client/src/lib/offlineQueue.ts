@@ -2,6 +2,9 @@ const DB_NAME = 'reader-offline'
 const STORE_NAME = 'read-queue'
 const DB_VERSION = 1
 
+/** Server enforces this limit on batch-seen */
+const BATCH_SIZE = 100
+
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION)
@@ -56,17 +59,19 @@ async function doFlush(): Promise<void> {
 
   const ids = [...new Set(items.map(i => i.articleId))]
 
-  // Attempt to send to server
+  // Send in chunks of BATCH_SIZE to stay within server limit
   const { authHeaders } = await import('./fetcher')
-  const res = await fetch('/api/articles/batch-seen', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeaders() },
-    body: JSON.stringify({ ids }),
-  })
+  for (let i = 0; i < ids.length; i += BATCH_SIZE) {
+    const chunk = ids.slice(i, i + BATCH_SIZE)
+    const res = await fetch('/api/articles/batch-seen', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ ids: chunk }),
+    })
+    if (!res.ok) throw new Error('flush failed')
+  }
 
-  if (!res.ok) throw new Error('flush failed')
-
-  // Clear the queue on success
+  // Clear the queue only after all chunks succeed
   const tx = db.transaction(STORE_NAME, 'readwrite')
   tx.objectStore(STORE_NAME).clear()
   await new Promise<void>((resolve, reject) => {

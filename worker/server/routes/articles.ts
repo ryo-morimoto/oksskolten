@@ -43,12 +43,7 @@ articleRoutes.get("/articles", async (c) => {
       ? "COALESCE(a.quality_score, 0) DESC"
       : "COALESCE(a.published_at, a.fetched_at) DESC";
 
-  const countResult = await c.env.DB.prepare(
-    `SELECT COUNT(*) as total FROM active_articles a ${where}`,
-  )
-    .bind(...binds)
-    .first<{ total: number }>();
-
+  // Fetch limit+1 rows to determine has_more without a separate COUNT query
   const result = await c.env.DB.prepare(
     `SELECT a.id, a.feed_id, a.category_id, a.title, a.url, a.lang,
             a.excerpt, a.og_image, a.quality_score, a.seen_at, a.read_at,
@@ -60,14 +55,15 @@ articleRoutes.get("/articles", async (c) => {
      ORDER BY ${orderBy}
      LIMIT ? OFFSET ?`,
   )
-    .bind(...binds, limit, offset)
+    .bind(...binds, limit + 1, offset)
     .all();
 
-  const total = countResult?.total ?? 0;
+  const hasMore = result.results.length > limit;
+  const articles = hasMore ? result.results.slice(0, limit) : result.results;
   return c.json({
-    articles: result.results,
-    total,
-    has_more: offset + result.results.length < total,
+    articles,
+    total: offset + articles.length + (hasMore ? 1 : 0),
+    has_more: hasMore,
   });
 });
 
@@ -76,7 +72,12 @@ articleRoutes.get("/articles/by-url", async (c) => {
   if (!url) return c.json({ error: "url query parameter is required" }, 400);
 
   const article = await c.env.DB.prepare(
-    `SELECT a.*, f.name as feed_name
+    `SELECT a.id, a.feed_id, a.category_id, a.title, a.url, a.lang,
+            a.excerpt, a.og_image, a.quality_score, a.seen_at, a.read_at,
+            a.bookmarked_at, a.liked_at, a.published_at, a.fetched_at,
+            a.full_text, a.full_text_translated, a.translated_lang,
+            a.summary, a.images_archived_at,
+            f.name as feed_name, f.type as feed_type
      FROM active_articles a
      LEFT JOIN feeds f ON a.feed_id = f.id
      WHERE a.url = ?`,
@@ -93,7 +94,12 @@ articleRoutes.get("/articles/:id{[0-9]+}", async (c) => {
   if (isNaN(id)) return c.json({ error: "Invalid id" }, 400);
 
   const article = await c.env.DB.prepare(
-    `SELECT a.*, f.name as feed_name
+    `SELECT a.id, a.feed_id, a.category_id, a.title, a.url, a.lang,
+            a.excerpt, a.og_image, a.quality_score, a.seen_at, a.read_at,
+            a.bookmarked_at, a.liked_at, a.published_at, a.fetched_at,
+            a.full_text, a.full_text_translated, a.translated_lang,
+            a.summary, a.images_archived_at,
+            f.name as feed_name, f.type as feed_type
      FROM active_articles a
      LEFT JOIN feeds f ON a.feed_id = f.id
      WHERE a.id = ?`,

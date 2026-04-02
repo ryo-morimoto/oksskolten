@@ -3,6 +3,31 @@ import type { AppContext } from "../index";
 
 export const settingsRoutes = new Hono<AppContext>();
 
+const ALLOWED_SETTINGS_KEYS = new Set([
+  "appearance.color_theme",
+  "appearance.highlight_theme",
+  "appearance.font_family",
+  "appearance.list_layout",
+  "appearance.mascot",
+  "reading.date_mode",
+  "reading.auto_mark_read",
+  "reading.unread_indicator",
+  "reading.internal_links",
+  "reading.show_thumbnails",
+  "reading.show_feed_activity",
+  "reading.article_open_mode",
+  "reading.category_unread_only",
+  "reading.keyboard_navigation",
+  "reading.keybindings",
+  "summary.provider",
+  "summary.model",
+  "translate.provider",
+  "translate.model",
+  "translate.target_lang",
+  "custom_themes",
+  "language",
+]);
+
 settingsRoutes.get("/settings/preferences", async (c) => {
   const result = await c.env.DB.prepare("SELECT key, value FROM settings").all<{
     key: string;
@@ -19,7 +44,7 @@ settingsRoutes.get("/settings/preferences", async (c) => {
 settingsRoutes.patch("/settings/preferences", async (c) => {
   const body = await c.req.json<Record<string, string | null>>();
 
-  const entries = Object.entries(body);
+  const entries = Object.entries(body).filter(([key]) => ALLOWED_SETTINGS_KEYS.has(key));
   if (entries.length > 0) {
     const stmts = entries.map(([key, value]) =>
       c.env.DB.prepare(

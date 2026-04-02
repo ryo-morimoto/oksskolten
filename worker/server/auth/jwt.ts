@@ -2,9 +2,13 @@ import type { Env } from "../index";
 
 const JWT_ALG = "HS256";
 const JWT_TTL = 30 * 24 * 60 * 60; // 30 days in seconds
+const JWT_ISSUER = "oksskolten";
+const JWT_AUDIENCE = "oksskolten-browser";
 
 interface JwtPayload {
   sub: string; // GitHub username
+  iss: string;
+  aud: string;
   iat: number;
   exp: number;
 }
@@ -17,6 +21,8 @@ export async function signJwt(username: string, secret: string): Promise<string>
   const now = Math.floor(Date.now() / 1000);
   const payload: JwtPayload = {
     sub: username,
+    iss: JWT_ISSUER,
+    aud: JWT_AUDIENCE,
     iat: now,
     exp: now + JWT_TTL,
   };
@@ -50,6 +56,7 @@ export async function verifyJwt(token: string, secret: string): Promise<JwtPaylo
   const payload: JwtPayload = JSON.parse(new TextDecoder().decode(base64urlDecode(body)));
   const now = Math.floor(Date.now() / 1000);
   if (payload.exp < now) return null;
+  if (payload.iss !== JWT_ISSUER || payload.aud !== JWT_AUDIENCE) return null;
 
   return payload;
 }
