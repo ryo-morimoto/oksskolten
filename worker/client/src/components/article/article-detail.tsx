@@ -59,13 +59,13 @@ export function ArticleDetail({ articleUrl }: ArticleDetailProps) {
   // Sync translation/summary back into SWR cache so it persists across navigations
   useEffect(() => {
     if (fullTextTranslated && article && article.full_text_translated !== fullTextTranslated) {
-      void mutate({ ...article, full_text_translated: fullTextTranslated, translated_lang: locale }, false)
+      void mutate(prev => prev ? { ...prev, full_text_translated: fullTextTranslated, translated_lang: locale } : prev, false)
     }
   }, [fullTextTranslated]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (summary && article && article.summary !== summary) {
-      void mutate({ ...article, summary }, false)
+      void mutate(prev => prev ? { ...prev, summary } : prev, false)
     }
   }, [summary]) // eslint-disable-line react-hooks/exhaustive-deps
 

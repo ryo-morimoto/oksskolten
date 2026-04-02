@@ -89,6 +89,25 @@ articleRoutes.get("/articles/by-url", async (c) => {
   return c.json(article);
 });
 
+// Bulk mark-all-seen across multiple feeds in a single D1 write
+articleRoutes.post("/articles/mark-all-seen", async (c) => {
+  const { feed_ids } = await c.req.json<{ feed_ids: number[] }>();
+  if (!Array.isArray(feed_ids) || feed_ids.length === 0) {
+    return c.json({ error: "feed_ids must be a non-empty array" }, 400);
+  }
+  if (!feed_ids.every((id) => typeof id === "number" && Number.isInteger(id) && id > 0)) {
+    return c.json({ error: "feed_ids must be positive integers" }, 400);
+  }
+  const placeholders = feed_ids.map(() => "?").join(", ");
+  const result = await c.env.DB.prepare(
+    `UPDATE articles SET seen_at = datetime('now')
+     WHERE feed_id IN (${placeholders}) AND purged_at IS NULL AND seen_at IS NULL`,
+  )
+    .bind(...feed_ids)
+    .run();
+  return c.json({ marked: result.meta.changes });
+});
+
 articleRoutes.get("/articles/:id{[0-9]+}", async (c) => {
   const id = Number(c.req.param("id"));
   if (isNaN(id)) return c.json({ error: "Invalid id" }, 400);
@@ -186,6 +205,9 @@ articleRoutes.post("/articles/batch-seen", async (c) => {
   }
   if (ids.length > 100) {
     return c.json({ error: "ids must not exceed 100 items" }, 400);
+  }
+  if (!ids.every((id) => typeof id === "number" && Number.isInteger(id) && id > 0)) {
+    return c.json({ error: "ids must be positive integers" }, 400);
   }
 
   const placeholders = ids.map(() => "?").join(", ");

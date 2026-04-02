@@ -76,6 +76,11 @@ export async function handleBrowserCallback(request: Request, env: Env): Promise
     return Response.json({ error: "Invalid state" }, { status: 400 });
   }
 
+  // Re-validate redirectUri from state (attacker can craft arbitrary state payloads)
+  if (!redirectUri.startsWith("/") || redirectUri.startsWith("//")) {
+    return Response.json({ error: "Invalid redirect" }, { status: 400 });
+  }
+
   const cookieHeader = request.headers.get("Cookie") || "";
   const stateCookie = parseCookie(cookieHeader, STATE_COOKIE);
   if (!stateCookie || stateCookie !== state) {
@@ -135,6 +140,8 @@ export async function handleBrowserCallback(request: Request, env: Env): Promise
     "Set-Cookie",
     `${STATE_COOKIE}=; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=0`,
   );
+  // Prevent exchange code from leaking via Referer header
+  mutable.headers.set("Referrer-Policy", "no-referrer");
   return mutable;
 }
 

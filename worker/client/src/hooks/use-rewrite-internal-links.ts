@@ -30,12 +30,13 @@ export function useRewriteInternalLinks(
       return
     }
 
-    // Parse HTML with <base> so relative links resolve against the article URL
+    // Parse HTML with <base> so relative links resolve against the article URL.
+    // Use programmatic DOM construction to avoid XSS via articleUrl injection.
     const parser = new DOMParser()
-    const doc = parser.parseFromString(
-      `<base href="${articleUrl}">${html}`,
-      'text/html',
-    )
+    const doc = parser.parseFromString(html, 'text/html')
+    const base = doc.createElement('base')
+    base.href = articleUrl
+    doc.head.appendChild(base)
     const anchors = doc.querySelectorAll('a[href]')
 
     // Collect same-domain links: canonical URL (origin+pathname) → elements

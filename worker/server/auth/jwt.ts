@@ -1,7 +1,7 @@
 import type { Env } from "../index";
 
 const JWT_ALG = "HS256";
-const JWT_TTL = 30 * 24 * 60 * 60; // 30 days in seconds
+const JWT_TTL = 7 * 24 * 60 * 60; // 7 days in seconds
 const JWT_ISSUER = "oksskolten";
 const JWT_AUDIENCE = "oksskolten-browser";
 

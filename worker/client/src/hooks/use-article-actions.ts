@@ -80,18 +80,22 @@ export function useArticleActions(article: ArticleDetail | undefined, articleKey
     }
   }, [article, articleKey, archivingImages, globalMutate])
 
-  const handleDelete = useCallback(() => {
+  const handleDelete = useCallback(async () => {
     if (!article) return
     const feedId = article.feed_id
     const articleId = article.id
-    void navigate(`/feeds/${feedId}`, { replace: true })
-    apiDelete(`/api/articles/${articleId}`)
-      .then(() => {
-        void globalMutate((key: unknown) =>
-          typeof key === 'string' && key.startsWith('/api/feeds'),
-        )
-      })
-      .catch((err) => console.warn('Failed to delete article:', err))
+    try {
+      await apiDelete(`/api/articles/${articleId}`)
+      void navigate(`/feeds/${feedId}`, { replace: true })
+      void globalMutate((key: unknown) =>
+        typeof key === 'string' && key.startsWith('/api/feeds'),
+      )
+    } catch (err) {
+      console.warn('Failed to delete article:', err)
+      void globalMutate((key: unknown) =>
+        typeof key === 'string' && key.includes('/api/articles'),
+      )
+    }
   }, [article, globalMutate, navigate])
 
   return {

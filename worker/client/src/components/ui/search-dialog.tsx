@@ -78,9 +78,7 @@ export function SearchDialog({ onClose }: SearchDialogProps) {
   }, [filterBookmarked, filterLiked, filterUnread, datePeriod])
 
   const doSearch = useCallback(async (q: string, filters: { bookmarked: boolean; liked: boolean; unread: boolean; since?: string }, offset = 0) => {
-    if (offset === 0) {
-      abortRef.current?.abort()
-    }
+    abortRef.current?.abort()
     if (!q.trim()) {
       setResults([])
       setHasSearched(false)
@@ -88,9 +86,7 @@ export function SearchDialog({ onClose }: SearchDialogProps) {
       return
     }
     const controller = new AbortController()
-    if (offset === 0) {
-      abortRef.current = controller
-    }
+    abortRef.current = controller
     try {
       const data = await searchArticles(q, filters, SEARCH_RESULTS_LIMIT, offset, controller.signal)
       if (data.indexBuilding) {

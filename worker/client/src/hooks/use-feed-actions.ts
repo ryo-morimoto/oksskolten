@@ -135,7 +135,7 @@ export function useFeedActions({
       try {
         await apiDelete(`/api/feeds/${feedId}`)
       } catch {
-        // rollback on failure
+        void mutateFeeds()
       }
       void mutateFeeds()
       revalidateArticles()
@@ -154,7 +154,8 @@ export function useFeedActions({
       try {
         await apiDelete(`/api/categories/${catId}`)
       } catch {
-        // rollback on failure
+        void mutateCategories()
+        void mutateFeeds()
       }
       void mutateCategories()
       void mutateFeeds()
