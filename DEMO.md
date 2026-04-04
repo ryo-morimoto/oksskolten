@@ -1,12 +1,17 @@
 # Oksskolten Browser Client Demo
 
-*2026-04-02T00:36:19Z*
+*2026-04-04T16:18:26Z by Showboat 0.6.1*
+<!-- showboat-id: 081b2354-7e6b-43dc-bb41-0184fb85ac64 -->
 
-Fork元の React SPA を同一 Cloudflare Worker から配信するブラウザクライアント。Workers Static Assets + ASSETS binding で SPA を配信し、Hono API と同一オリジンで動作する。
+Fork元の React SPA を同一 Cloudflare Worker から配信するブラウザクライアント。Workers Static Assets (`ASSETS` binding) で SPA を配信し、Hono API と同一オリジンで動作する。
 
 ## Login Page
 
 GitHub OAuth only. The SPA shows a login page with a "Sign in with GitHub" button. Dark mode is auto-detected from the browser preference.
+
+```bash {image}
+docs/demo/01-login.png
+```
 
 ![Login](docs/demo/01-login.png)
 
@@ -14,11 +19,19 @@ GitHub OAuth only. The SPA shows a login page with a "Sign in with GitHub" butto
 
 After authentication, the home page shows a greeting and dashboard stats (inbox count, feed count). The sidebar has navigation: Inbox, Search, Bookmarks, Likes, History, and the feed list.
 
+```bash {image}
+docs/demo/02-home.png
+```
+
 ![Home](docs/demo/02-home.png)
 
 ## Inbox
 
 The Inbox page shows unread articles. A hint banner explains the inbox concept. The sidebar highlights the active nav item.
+
+```bash {image}
+docs/demo/03-inbox.png
+```
 
 ![Inbox](docs/demo/03-inbox.png)
 
@@ -26,11 +39,19 @@ The Inbox page shows unread articles. A hint banner explains the inbox concept. 
 
 Profile (read-only GitHub username), language selector (Japanese/English), and reading preferences (unread indicator, etc.).
 
+```bash {image}
+docs/demo/04-settings-general.png
+```
+
 ![Settings General](docs/demo/04-settings-general.png)
 
 ## Settings — Appearance
 
-Theme picker, color mode, font selection, and syntax highlighting theme. All preferences are persisted to the D1 settings table.
+Layout picker (list/card/magazine/compact), color mode (light/dark/auto), color theme, font selection, and syntax highlighting. All preferences are persisted to the D1 settings table.
+
+```bash {image}
+docs/demo/05-settings-appearance.png
+```
 
 ![Settings Appearance](docs/demo/05-settings-appearance.png)
 
