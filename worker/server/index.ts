@@ -115,9 +115,19 @@ const oauth = new OAuthProvider({
       }
 
       // Static assets + SPA fallback
-      // not_found_handling = "single-page-application" in wrangler.toml
-      // automatically serves index.html for unmatched paths
-      if (env.ASSETS) return env.ASSETS.fetch(request);
+      // not_found_handling = "none" so the Worker always runs first.
+      // Try the exact asset; if 404, fall back to index.html only for
+      // navigation requests (Accept: text/html). Sub-resource requests
+      // (CSS, JS, images) get a real 404 to avoid MIME-type mismatches.
+      if (env.ASSETS) {
+        const assetRes = await env.ASSETS.fetch(request);
+        if (assetRes.status !== 404) return assetRes;
+        const accept = request.headers.get("Accept") || "";
+        if (accept.includes("text/html")) {
+          return env.ASSETS.fetch(new Request(new URL("/index.html", request.url)));
+        }
+        return assetRes;
+      }
 
       return new Response("Not found", { status: 404 });
     },

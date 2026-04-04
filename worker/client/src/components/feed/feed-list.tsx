@@ -306,7 +306,7 @@ export function FeedList({ isOpen, onClose, onBackdropClose, onCollapse, onMarkA
             if (!domain) return null
             return (
               <img
-                src={`https://www.google.com/s2/favicons?sz=16&domain=${domain}`}
+                src={`https://icons.duckduckgo.com/ip3/${domain}.ico`}
                 alt=""
                 width={16}
                 height={16}

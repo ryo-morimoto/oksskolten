@@ -43,7 +43,7 @@ function Thumbnail({ src, articleUrl, className }: { src: string | null; article
     return (
       <div className={`${sizeClass} rounded shrink-0 border border-border bg-bg-subtle flex items-center justify-center`}>
         <img
-          src={`https://www.google.com/s2/favicons?sz=32&domain=${domain}`}
+          src={`https://icons.duckduckgo.com/ip3/${domain}.ico`}
           alt=""
           loading="lazy"
           width={24}
@@ -85,7 +85,7 @@ function LargeThumbnail({ src, articleUrl }: { src: string | null; articleUrl: s
     <div className="w-full aspect-video rounded-t bg-bg-subtle border-b border-border flex items-center justify-center">
       {domain ? (
         <img
-          src={`https://www.google.com/s2/favicons?sz=32&domain=${domain}`}
+          src={`https://icons.duckduckgo.com/ip3/${domain}.ico`}
           alt=""
           loading="lazy"
           width={32}
@@ -161,7 +161,7 @@ function ListCard({ article, dateMode, indicatorStyle, showUnreadIndicator, show
             {domain && (
               <>
                 <img
-                  src={`https://www.google.com/s2/favicons?sz=16&domain=${domain}`}
+                  src={`https://icons.duckduckgo.com/ip3/${domain}.ico`}
                   alt=""
                   width={14}
                   height={14}
@@ -209,7 +209,7 @@ function GridCard({ article, dateMode, showThumbnails, onClick }: ArticleCardPro
           {domain && (
             <>
               <img
-                src={`https://www.google.com/s2/favicons?sz=16&domain=${domain}`}
+                src={`https://icons.duckduckgo.com/ip3/${domain}.ico`}
                 alt=""
                 width={12}
                 height={12}
@@ -255,7 +255,7 @@ function HeroCard({ article, dateMode, showThumbnails, onClick }: ArticleCardPro
           {domain && (
             <>
               <img
-                src={`https://www.google.com/s2/favicons?sz=16&domain=${domain}`}
+                src={`https://icons.duckduckgo.com/ip3/${domain}.ico`}
                 alt=""
                 width={14}
                 height={14}
@@ -301,7 +301,7 @@ function SmallCard({ article, dateMode, showThumbnails, onClick }: ArticleCardPr
           {domain && (
             <>
               <img
-                src={`https://www.google.com/s2/favicons?sz=16&domain=${domain}`}
+                src={`https://icons.duckduckgo.com/ip3/${domain}.ico`}
                 alt=""
                 width={12}
                 height={12}
