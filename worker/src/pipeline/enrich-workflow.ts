@@ -3,6 +3,7 @@ import { getContainer } from "@cloudflare/containers";
 import { tokenizeText } from "../container/kuromoji";
 import { decomposeTrigrams } from "../lib/trigram";
 import { computeQualityScore } from "../lib/quality";
+import { extractEmbedding } from "../lib/search";
 import { uploadOgImage } from "../lib/og-image";
 import type { Env } from "../index";
 
@@ -66,7 +67,7 @@ export class EnrichWorkflow extends WorkflowEntrypoint<Env, EnrichParams> {
             if (content.fullText) {
               let ogImageKey: string | null = null;
               if (content.ogImage) {
-                ogImageKey = await uploadOgImage(this.env.STORAGE, row.id, content.ogImage);
+                ogImageKey = await uploadOgImage(this.env.STORAGE, content.ogImage);
               }
               await this.env.DB.prepare(
                 `UPDATE articles SET full_text = ?, og_image = ?,
@@ -262,5 +263,58 @@ export class EnrichWorkflow extends WorkflowEntrypoint<Env, EnrichParams> {
         return { termsAdded: terms.length };
       },
     );
+
+    // Step 5: backfill_embed — embed articles missed by IngestWorkflow (e.g. disabled feeds)
+    // TODO: DELETE THIS STEP ON 2026-04-05 — one-time backfill for 747 unembedded articles
+    const unembedded = await step.do("backfill_embed_query", async () => {
+      const result = await this.env.DB.prepare(
+        `SELECT a.id, a.feed_id FROM active_articles a
+         WHERE a.embedded_at IS NULL AND a.title IS NOT NULL
+         ORDER BY a.id ASC LIMIT 50`,
+      ).all<{ id: number; feed_id: number }>();
+      return result.results;
+    });
+
+    for (const row of unembedded) {
+      await step.do(
+        `backfill_embed_${row.id}`,
+        {
+          retries: { limit: 2, delay: "10 second", backoff: "exponential" },
+          timeout: "2 minutes",
+        },
+        async () => {
+          const article = await this.env.DB.prepare(
+            "SELECT title, full_text, excerpt FROM articles WHERE id = ?",
+          )
+            .bind(row.id)
+            .first<{ title: string; full_text: string | null; excerpt: string | null }>();
+          if (!article) return { articleId: row.id, skipped: true };
+
+          const rawBody = article.full_text || article.excerpt || "";
+          const body = rawBody.length > 6000 ? rawBody.slice(0, 6000) : rawBody;
+          const text = `${article.title} ${body}`.trim();
+          const embedResult = await this.env.AI.run("@cf/baai/bge-m3", {
+            text: [text],
+          });
+          const values = extractEmbedding(embedResult);
+
+          await this.env.VECTORIZE.upsert([
+            {
+              id: String(row.id),
+              values,
+              metadata: { feed_id: row.feed_id },
+            },
+          ]);
+
+          await this.env.DB.prepare(
+            "UPDATE articles SET embedded_at = datetime('now') WHERE id = ? AND embedded_at IS NULL",
+          )
+            .bind(row.id)
+            .run();
+
+          return { articleId: row.id };
+        },
+      );
+    }
   }
 }
