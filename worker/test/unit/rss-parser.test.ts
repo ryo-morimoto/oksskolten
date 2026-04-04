@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseRssXml, normalizeDate } from "../../src/lib/rss-parser";
+import { parseRssXml, normalizeDate } from "../../server/lib/rss-parser";
 
 describe("parseRssXml", () => {
   it("parses RSS 2.0", async () => {

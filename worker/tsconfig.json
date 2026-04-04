@@ -21,5 +21,5 @@
       "@cloudflare/vitest-pool-workers/types"
     ]
   },
-  "include": ["src", "test"]
+  "include": ["server", "test"]
 }

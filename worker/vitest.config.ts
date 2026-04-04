@@ -15,7 +15,7 @@ export default defineConfig(async () => {
   return {
     plugins: [
       cloudflareTest({
-        main: './src/index.ts',
+        main: './server/index.ts',
         wrangler: {
           configPath: './wrangler.test.toml',
         },
@@ -28,7 +28,7 @@ export default defineConfig(async () => {
     ],
     test: {
       globals: true,
-      exclude: ['test/e2e/**', 'node_modules/**', 'ui/**'],
+      exclude: ['test/e2e/**', 'node_modules/**', 'ui/**', 'client/**'],
     },
   }
 })

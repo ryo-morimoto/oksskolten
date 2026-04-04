@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { extractContent } from "../../src/pipeline/extract-content";
+import { extractContent } from "../../server/pipeline/extract-content";
 
 // Minimal article HTML that Defuddle can extract with linkedom
 const SIMPLE_ARTICLE = `<html><head><title>Test Article</title><meta property="og:title" content="Test Article"></head>

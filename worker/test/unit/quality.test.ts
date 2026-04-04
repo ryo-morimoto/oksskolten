@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeQualityScore } from "../../src/lib/quality";
+import { computeQualityScore } from "../../server/lib/quality";
 
 describe("computeQualityScore", () => {
   it("returns 0 for empty/very short content", () => {

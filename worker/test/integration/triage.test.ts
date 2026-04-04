@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { env } from "cloudflare:workers";
 import { setupTestDb, seedFeed, seedArticle } from "../helpers";
-import { computeFeedInterests, getRecommendedArticles } from "../../src/lib/triage";
+import { computeFeedInterests, getRecommendedArticles } from "../../server/lib/triage";
 
 describe("Triage", () => {
   beforeEach(async () => {

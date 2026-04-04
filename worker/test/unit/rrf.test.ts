@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeEngagement, computeRrfScore } from "../../src/routes/search";
+import { computeEngagement, computeRrfScore } from "../../server/routes/search";
 
 describe("computeRrfScore", () => {
   it("sums 1/(k+rank) for each ranker with k=60", () => {

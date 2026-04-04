@@ -17,5 +17,5 @@
       }
     }
   ],
-  "ignorePatterns": ["src/lib/defuddle-bundle.mjs"]
+  "ignorePatterns": ["server/lib/defuddle-bundle.mjs"]
 }

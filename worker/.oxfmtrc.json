@@ -1,4 +1,4 @@
 {
   "$schema": "./node_modules/oxfmt/configuration_schema.json",
-  "ignorePatterns": ["src/lib/defuddle-bundle.mjs", "src/lib/articles-ui-bundle.html"]
+  "ignorePatterns": ["server/lib/defuddle-bundle.mjs", "server/lib/articles-ui-bundle.html"]
 }

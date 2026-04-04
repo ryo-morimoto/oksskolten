@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { env } from "cloudflare:workers";
 import { setupTestDb } from "../helpers";
-import { bindNamedParams, runNamed, getNamed, allNamed } from "../../src/db/client";
+import { bindNamedParams, runNamed, getNamed, allNamed } from "../../server/db/client";
 
 describe("D1 client helpers", () => {
   beforeEach(async () => {
