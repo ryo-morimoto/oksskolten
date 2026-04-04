@@ -41,10 +41,20 @@ settingsRoutes.get("/settings/preferences", async (c) => {
   return c.json(preferences);
 });
 
+const MAX_VALUE_BYTES = 64 * 1024; // 64 KB per value (custom_themes JSON can be large)
+
 settingsRoutes.patch("/settings/preferences", async (c) => {
   const body = await c.req.json<Record<string, string | null>>();
 
   const entries = Object.entries(body).filter(([key]) => ALLOWED_SETTINGS_KEYS.has(key));
+  for (const [key, value] of entries) {
+    if (value !== null && typeof value !== "string") {
+      return c.json({ error: `Value for "${key}" must be a string or null` }, 400);
+    }
+    if (typeof value === "string" && new TextEncoder().encode(value).byteLength > MAX_VALUE_BYTES) {
+      return c.json({ error: `Value for "${key}" exceeds maximum size (64 KB)` }, 400);
+    }
+  }
   if (entries.length > 0) {
     const stmts = entries.map(([key, value]) =>
       c.env.DB.prepare(

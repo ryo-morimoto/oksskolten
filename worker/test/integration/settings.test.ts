@@ -73,6 +73,31 @@ describe("PATCH /api/settings/preferences", () => {
     expect(body["appearance.color_theme"]).toBe("light");
     expect(body.language).toBe("ja");
   });
+
+  it("ignores unknown keys", async () => {
+    const res = await jsonApi("/settings/preferences", "PATCH", {
+      "appearance.color_theme": "dark",
+      "unknown.key": "value",
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json<Record<string, string | null>>();
+    expect(body["appearance.color_theme"]).toBe("dark");
+    expect(body["unknown.key"]).toBeUndefined();
+  });
+
+  it("rejects non-string value", async () => {
+    const res = await jsonApi("/settings/preferences", "PATCH", {
+      "appearance.color_theme": 123,
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects value exceeding 64 KB", async () => {
+    const res = await jsonApi("/settings/preferences", "PATCH", {
+      custom_themes: "x".repeat(65 * 1024),
+    });
+    expect(res.status).toBe(400);
+  });
 });
 
 describe("GET /api/settings/profile", () => {
@@ -80,11 +105,11 @@ describe("GET /api/settings/profile", () => {
     await setupTestDb();
   });
 
-  it("returns login and null language when no language setting", async () => {
+  it("returns account_name and null language when no language setting", async () => {
     const res = await api("/settings/profile");
     expect(res.status).toBe(200);
-    const body = await res.json<{ login: string; language: string | null }>();
-    expect(typeof body.login).toBe("string");
+    const body = await res.json<{ account_name: string; language: string | null }>();
+    expect(typeof body.account_name).toBe("string");
     expect(body.language).toBeNull();
   });
 
@@ -93,7 +118,7 @@ describe("GET /api/settings/profile", () => {
 
     const res = await api("/settings/profile");
     expect(res.status).toBe(200);
-    const body = await res.json<{ login: string; language: string | null }>();
+    const body = await res.json<{ account_name: string; language: string | null }>();
     expect(body.language).toBe("ja");
   });
 });

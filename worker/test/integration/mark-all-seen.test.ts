@@ -67,6 +67,50 @@ describe("POST /api/feeds/:id/mark-all-seen", () => {
   });
 });
 
+describe("POST /api/articles/mark-all-seen", () => {
+  let feedId: number;
+
+  beforeEach(async () => {
+    await setupTestDb();
+    const feed = await seedFeed();
+    feedId = feed.id as number;
+  });
+
+  const jsonPost = (body: unknown) =>
+    api("/articles/mark-all-seen", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+  it("marks unseen articles across feeds", async () => {
+    const feed2 = await seedFeed({ name: "F2", url: "https://f2.com" });
+    await seedArticle(feedId, { url: "https://a.com/1" });
+    await seedArticle(feed2.id as number, { url: "https://a.com/2" });
+
+    const res = await jsonPost({ feed_ids: [feedId, feed2.id as number] });
+    expect(res.status).toBe(200);
+    const body = await res.json<{ marked: number }>();
+    expect(body.marked).toBe(2);
+  });
+
+  it("returns 400 when feed_ids is empty", async () => {
+    const res = await jsonPost({ feed_ids: [] });
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 when feed_ids exceeds 100", async () => {
+    const ids = Array.from({ length: 101 }, (_, i) => i + 1);
+    const res = await jsonPost({ feed_ids: ids });
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 for non-integer feed_ids", async () => {
+    const res = await jsonPost({ feed_ids: [1.5] });
+    expect(res.status).toBe(400);
+  });
+});
+
 describe("POST /api/categories/:id/mark-all-seen", () => {
   let feedId: number;
   let categoryId: number;

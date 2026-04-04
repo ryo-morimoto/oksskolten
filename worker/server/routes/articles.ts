@@ -95,6 +95,9 @@ articleRoutes.post("/articles/mark-all-seen", async (c) => {
   if (!Array.isArray(feed_ids) || feed_ids.length === 0) {
     return c.json({ error: "feed_ids must be a non-empty array" }, 400);
   }
+  if (feed_ids.length > 100) {
+    return c.json({ error: "feed_ids must not exceed 100 items" }, 400);
+  }
   if (!feed_ids.every((id) => typeof id === "number" && Number.isInteger(id) && id > 0)) {
     return c.json({ error: "feed_ids must be positive integers" }, 400);
   }
