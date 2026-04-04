@@ -14,7 +14,8 @@ export class McpApiHandler extends WorkerEntrypoint<Env> {
     const app = new Hono();
 
     app.all("*", async (c) => {
-      const mcpServer = createMcpServer(env);
+      const origin = new URL(c.req.url).origin;
+      const mcpServer = createMcpServer(env, origin);
       const transport = new StreamableHTTPTransport({ enableJsonResponse: true });
       await mcpServer.connect(transport);
       return transport.handleRequest(c as never);
