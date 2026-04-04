@@ -19,8 +19,8 @@ function json(data: unknown): ToolResult {
 
 function ogImageUrl(ogImage: string | null, origin: string): string | null {
   if (!ogImage) return null;
-  // og_image stores the R2 key (e.g. "og/123.jpg") — serve via Worker route
-  if (ogImage.startsWith("og/")) return `${origin}/api/${ogImage}`;
+  // og_image stores the R2 key (e.g. "og/abc-def.jpg") — serve via /og/ route
+  if (ogImage.startsWith("og/")) return `${origin}/${ogImage}`;
   // Legacy: external URL not yet migrated to R2
   return ogImage;
 }

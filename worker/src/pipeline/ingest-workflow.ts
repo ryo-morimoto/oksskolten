@@ -223,7 +223,6 @@ export class IngestWorkflow extends WorkflowEntrypoint<Env, IngestParams> {
                 if (content.ogImage) {
                   ogImageKey = await uploadOgImage(
                     this.env.STORAGE,
-                    article.id,
                     content.ogImage,
                   );
                 }

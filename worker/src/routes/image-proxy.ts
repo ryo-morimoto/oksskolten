@@ -1,19 +1,30 @@
-import { Hono } from "hono";
-import type { AppContext } from "../index";
+import type { Env } from "../index";
 
-export const imageProxyRoute = new Hono<AppContext>();
+/** Serve og_image from R2 with edge caching. Mounted at /og/ outside OAuthProvider. */
+export async function handleOgImage(
+  request: Request,
+  env: Env,
+  ctx: ExecutionContext,
+): Promise<Response> {
+  const url = new URL(request.url);
+  const key = url.pathname.slice(1); // "/og/abc.jpg" → "og/abc.jpg"
 
-/** Serve og_image from R2 via Worker. Key format: og/{article_id}.{ext} */
-imageProxyRoute.get("/og/:key{.+}", async (c) => {
-  const key = `og/${c.req.param("key")}`;
-  const object = await c.env.STORAGE.get(key);
-  if (!object) return c.text("Not found", 404);
+  // Edge cache lookup (Cloudflare-specific .default — type extended by workers-types)
+  const cache = (caches as unknown as { default: Cache }).default;
+  const cacheKey = new Request(url.toString(), request);
+  const cached = await cache.match(cacheKey);
+  if (cached) return cached;
 
-  return new Response(object.body, {
-    headers: {
-      "Content-Type": object.httpMetadata?.contentType ?? "image/jpeg",
-      "Cache-Control": "public, max-age=86400, immutable",
-      ETag: object.httpEtag,
-    },
-  });
-});
+  // R2 fetch
+  const object = await env.STORAGE.get(key);
+  if (!object) return new Response("Not found", { status: 404 });
+
+  const headers = new Headers();
+  object.writeHttpMetadata(headers);
+  headers.set("etag", object.httpEtag);
+  headers.set("cache-control", "public, max-age=86400, s-maxage=604800, immutable");
+
+  const response = new Response(object.body, { headers });
+  ctx.waitUntil(cache.put(cacheKey, response.clone()));
+  return response;
+}

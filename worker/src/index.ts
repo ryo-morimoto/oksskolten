@@ -1,7 +1,7 @@
 import { OAuthProvider, type OAuthHelpers } from "@cloudflare/workers-oauth-provider";
 import { Hono } from "hono";
 import { healthRoute } from "./routes/health";
-import { imageProxyRoute } from "./routes/image-proxy";
+import { handleOgImage } from "./routes/image-proxy";
 import { feedRoutes } from "./routes/feeds";
 import { categoryRoutes } from "./routes/categories";
 import { articleRoutes } from "./routes/articles";
@@ -48,7 +48,13 @@ export function createApiApp(guard: MiddlewareHandler<AppContext>) {
 
   // Public
   app.route("/api", healthRoute);
-  app.route("/api", imageProxyRoute);
+
+  // Redirect legacy /api/og/* → /og/* (clients may have cached old URLs)
+  app.get("/api/og/*", (c) => {
+    const url = new URL(c.req.url);
+    url.pathname = url.pathname.replace("/api/og/", "/og/");
+    return c.redirect(url.toString(), 301);
+  });
 
   // Protected
   const protected_ = new Hono<AppContext>();
@@ -80,8 +86,9 @@ const oauth = new OAuthProvider({
     },
   },
   defaultHandler: {
-    async fetch(request: Request, env: Env) {
+    async fetch(request: Request, env: Env, ctx: ExecutionContext) {
       const url = new URL(request.url);
+      if (url.pathname.startsWith("/og/")) return handleOgImage(request, env, ctx);
       if (url.pathname === "/authorize") return handleAuthorize(request, env);
       if (url.pathname === "/callback") return handleCallback(request, env);
       return new Response("Not found", { status: 404 });

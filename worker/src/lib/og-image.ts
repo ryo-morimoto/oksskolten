@@ -13,7 +13,6 @@ const OG_MAX_SIZE = 2 * 1024 * 1024; // 2 MB
 /** Download og_image and upload to R2. Returns the R2 key or null on failure. */
 export async function uploadOgImage(
   storage: R2Bucket,
-  articleId: number,
   imageUrl: string,
 ): Promise<string | null> {
   try {
@@ -31,7 +30,7 @@ export async function uploadOgImage(
     if (contentLength > OG_MAX_SIZE) return null;
 
     const ext = contentType.split("/")[1]?.replace("svg+xml", "svg") ?? "jpg";
-    const key = `og/${articleId}.${ext}`;
+    const key = `og/${crypto.randomUUID()}.${ext}`;
 
     await storage.put(key, res.body, {
       httpMetadata: { contentType },
