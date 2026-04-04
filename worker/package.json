@@ -18,7 +18,7 @@
     "lint": "oxlint src/",
     "fmt": "oxfmt -c .oxfmtrc.json src/ test/",
     "fmt:check": "oxfmt -c .oxfmtrc.json --check src/ test/",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsgo --noEmit",
     "d1:create": "wrangler d1 create oksskolten",
     "d1:migrate": "wrangler d1 migrations apply oksskolten --local",
     "d1:migrate:remote": "wrangler d1 migrations apply oksskolten --remote"
@@ -40,6 +40,7 @@
     "@cloudflare/vitest-pool-workers": "^0.13.3",
     "@cloudflare/workers-types": "^4.20260317.1",
     "@types/turndown": "^5.0.6",
+    "@typescript/native-preview": "^7.0.0-dev.20260323.1",
     "esbuild": "^0.27.4",
     "oxfmt": "^0.41.0",
     "oxlint": "^1.56.0",

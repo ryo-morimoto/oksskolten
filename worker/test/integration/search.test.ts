@@ -146,12 +146,32 @@ describe("GET /api/articles/search", () => {
   });
 
   it("filters results by feed_id", async () => {
-    const feed1 = (await seedFeed({ name: "Feed 1", url: "https://a.com", rss_url: "https://a.com/rss" })) as { id: number };
-    const feed2 = (await seedFeed({ name: "Feed 2", url: "https://b.com", rss_url: "https://b.com/rss" })) as { id: number };
+    const feed1 = (await seedFeed({
+      name: "Feed 1",
+      url: "https://a.com",
+      rss_url: "https://a.com/rss",
+    })) as { id: number };
+    const feed2 = (await seedFeed({
+      name: "Feed 2",
+      url: "https://b.com",
+      rss_url: "https://b.com/rss",
+    })) as { id: number };
     await env.DB.prepare("INSERT INTO articles_fts(articles_fts) VALUES ('rebuild')").run();
 
-    await insertArticleWithTokens(feed1.id, "Kubernetes Deployment", "https://a.com/1", "kubernetes", "kubernetes deployment");
-    await insertArticleWithTokens(feed2.id, "Kubernetes Security", "https://b.com/1", "kubernetes", "kubernetes security");
+    await insertArticleWithTokens(
+      feed1.id,
+      "Kubernetes Deployment",
+      "https://a.com/1",
+      "kubernetes",
+      "kubernetes deployment",
+    );
+    await insertArticleWithTokens(
+      feed2.id,
+      "Kubernetes Security",
+      "https://b.com/1",
+      "kubernetes",
+      "kubernetes security",
+    );
     await env.DB.prepare("INSERT INTO articles_fts(articles_fts) VALUES ('rebuild')").run();
 
     const all = await search("kubernetes");
@@ -159,7 +179,10 @@ describe("GET /api/articles/search", () => {
     expect(allBody.total).toBe(2);
 
     const filtered = await search("kubernetes", { feed_id: String(feed1.id) });
-    const filteredBody = await filtered.json<{ articles: Array<{ feed_id: number }>; total: number }>();
+    const filteredBody = await filtered.json<{
+      articles: Array<{ feed_id: number }>;
+      total: number;
+    }>();
     expect(filteredBody.total).toBe(1);
     expect(filteredBody.articles[0]!.feed_id).toBe(feed1.id);
   });
