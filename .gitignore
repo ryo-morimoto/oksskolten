@@ -16,4 +16,5 @@ coverage/
 
 # Misc
 .omc/
+.context/
 CLAUDE.md.bak
