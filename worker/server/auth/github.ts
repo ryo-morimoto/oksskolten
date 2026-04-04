@@ -1,4 +1,5 @@
 import type { Env } from "../index";
+import { handleBrowserCallback } from "./browser";
 
 const GITHUB_AUTHORIZE_URL = "https://github.com/login/oauth/authorize";
 const GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token";
@@ -28,10 +29,8 @@ export async function handleAuthorize(request: Request, env: Env): Promise<Respo
 }
 
 /**
- * Handle GitHub OAuth callback:
- * 1. Exchange code for GitHub token
- * 2. Verify user identity (must be GITHUB_ALLOWED_USERNAME)
- * 3. Complete MCP authorization
+ * Unified GitHub OAuth callback (/callback).
+ * Dispatches to browser or MCP flow based on KV prefix.
  */
 export async function handleCallback(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
@@ -42,7 +41,13 @@ export async function handleCallback(request: Request, env: Env): Promise<Respon
     return new Response("Missing code or state", { status: 400 });
   }
 
-  // Retrieve original OAuth request from KV
+  // Check if this is a browser OAuth flow
+  const browserState = await env.OAUTH_KV.get(`browser_state:${stateKey}`);
+  if (browserState) {
+    return handleBrowserCallback(request, env);
+  }
+
+  // Otherwise, MCP OAuth flow
   const stored = await env.OAUTH_KV.get(`github_state:${stateKey}`);
   if (!stored) {
     return new Response("Invalid or expired state", { status: 400 });

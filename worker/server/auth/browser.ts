@@ -26,13 +26,18 @@ export async function handleBrowserLogin(request: Request, env: Env): Promise<Re
   }
 
   const state = crypto.randomUUID();
-  // Encode redirect_uri into state so we can restore it in callback
-  const statePayload = JSON.stringify({ state, redirectUri });
+
+  // Store browser flow state in KV (same /callback as MCP, distinguished by prefix)
+  await env.OAUTH_KV.put(
+    `browser_state:${state}`,
+    JSON.stringify({ csrfState: state, redirectUri }),
+    { expirationTtl: 600 },
+  );
 
   const params = new URLSearchParams({
     client_id: env.GITHUB_CLIENT_ID,
-    redirect_uri: new URL("/auth/github/callback", request.url).href,
-    state: btoa(statePayload),
+    redirect_uri: new URL("/callback", request.url).href,
+    state,
     scope: "read:user",
   });
 
@@ -47,9 +52,9 @@ export async function handleBrowserLogin(request: Request, env: Env): Promise<Re
 }
 
 /**
- * GET /auth/github/callback?code=...&state=...
+ * GET /callback?code=...&state=...  (browser flow)
  *
- * GitHub redirects here after user authorizes.
+ * Called from the unified /callback when browser_state:{state} exists in KV.
  * - Verifies state cookie matches (CSRF protection)
  * - Exchanges code for GitHub token
  * - Verifies user is GITHUB_ALLOWED_USERNAME
@@ -59,31 +64,25 @@ export async function handleBrowserLogin(request: Request, env: Env): Promise<Re
 export async function handleBrowserCallback(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
-  const stateParam = url.searchParams.get("state");
+  const state = url.searchParams.get("state");
 
-  if (!code || !stateParam) {
+  if (!code || !state) {
     return Response.json({ error: "Missing code or state" }, { status: 400 });
   }
 
-  // Decode state and verify CSRF cookie
-  let state: string;
-  let redirectUri: string;
-  try {
-    const parsed = JSON.parse(atob(stateParam));
-    state = parsed.state;
-    redirectUri = parsed.redirectUri || "/";
-  } catch {
-    return Response.json({ error: "Invalid state" }, { status: 400 });
+  // Retrieve browser flow state from KV
+  const stored = await env.OAUTH_KV.get(`browser_state:${state}`);
+  if (!stored) {
+    return Response.json({ error: "Invalid or expired state" }, { status: 400 });
   }
+  await env.OAUTH_KV.delete(`browser_state:${state}`);
 
-  // Re-validate redirectUri from state (attacker can craft arbitrary state payloads)
-  if (!redirectUri.startsWith("/") || redirectUri.startsWith("//")) {
-    return Response.json({ error: "Invalid redirect" }, { status: 400 });
-  }
+  const { csrfState, redirectUri } = JSON.parse(stored) as { csrfState: string; redirectUri: string };
 
+  // Verify CSRF cookie matches state
   const cookieHeader = request.headers.get("Cookie") || "";
   const stateCookie = parseCookie(cookieHeader, STATE_COOKIE);
-  if (!stateCookie || stateCookie !== state) {
+  if (!stateCookie || stateCookie !== csrfState) {
     return Response.json({ error: "State mismatch (CSRF check failed)" }, { status: 403 });
   }
 

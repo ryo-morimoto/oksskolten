@@ -194,7 +194,7 @@ describe("GET /api/me", () => {
 });
 
 describe("browser login redirect", () => {
-  it("redirects to GitHub with correct params", async () => {
+  it("redirects to GitHub with correct params and stores state in KV", async () => {
     const { handleBrowserLogin } = await import("../../server/auth/browser");
     const request = new Request("http://localhost/auth/github/login?redirect_uri=/inbox");
     const response = await handleBrowserLogin(request, appEnv);
@@ -203,13 +203,22 @@ describe("browser login redirect", () => {
     const location = response.headers.get("Location")!;
     expect(location).toContain("github.com/login/oauth/authorize");
     expect(location).toContain("client_id=");
-    expect(location).toContain("redirect_uri=");
+    // redirect_uri should point to unified /callback
+    expect(location).toContain("redirect_uri=http%3A%2F%2Flocalhost%2Fcallback");
 
     // Should set HttpOnly state cookie
     const cookie = response.headers.get("Set-Cookie")!;
     expect(cookie).toContain("oauth_state=");
     expect(cookie).toContain("HttpOnly");
     expect(cookie).toContain("Secure");
+
+    // State should be stored in KV with browser_state: prefix
+    const stateParam = new URL(location).searchParams.get("state")!;
+    const stored = await appEnv.OAUTH_KV.get(`browser_state:${stateParam}`);
+    expect(stored).not.toBeNull();
+    const parsed = JSON.parse(stored!);
+    expect(parsed.redirectUri).toBe("/inbox");
+    expect(parsed.csrfState).toBe(stateParam);
   });
 
   it("rejects absolute redirect_uri (open redirect prevention)", async () => {
@@ -230,7 +239,7 @@ describe("browser login redirect", () => {
 describe("handleBrowserCallback param validation", () => {
   it("returns 400 when code param is missing", async () => {
     const { handleBrowserCallback } = await import("../../server/auth/browser");
-    const request = new Request("http://localhost/auth/github/callback?state=abc");
+    const request = new Request("http://localhost/callback?state=abc");
     const response = await handleBrowserCallback(request, appEnv);
     expect(response.status).toBe(400);
     const body = await response.json<{ error: string }>();
@@ -239,7 +248,7 @@ describe("handleBrowserCallback param validation", () => {
 
   it("returns 400 when state param is missing", async () => {
     const { handleBrowserCallback } = await import("../../server/auth/browser");
-    const request = new Request("http://localhost/auth/github/callback?code=abc");
+    const request = new Request("http://localhost/callback?code=abc");
     const response = await handleBrowserCallback(request, appEnv);
     expect(response.status).toBe(400);
     const body = await response.json<{ error: string }>();
@@ -248,17 +257,17 @@ describe("handleBrowserCallback param validation", () => {
 
   it("returns 400 when both code and state are missing", async () => {
     const { handleBrowserCallback } = await import("../../server/auth/browser");
-    const request = new Request("http://localhost/auth/github/callback");
+    const request = new Request("http://localhost/callback");
     const response = await handleBrowserCallback(request, appEnv);
     expect(response.status).toBe(400);
   });
 
-  it("returns 400 when state is not valid base64 JSON", async () => {
+  it("returns 400 when state is not found in KV", async () => {
     const { handleBrowserCallback } = await import("../../server/auth/browser");
-    const request = new Request("http://localhost/auth/github/callback?code=abc&state=not-valid-base64");
+    const request = new Request("http://localhost/callback?code=abc&state=nonexistent");
     const response = await handleBrowserCallback(request, appEnv);
     expect(response.status).toBe(400);
     const body = await response.json<{ error: string }>();
-    expect(body.error).toContain("Invalid state");
+    expect(body.error).toContain("Invalid or expired state");
   });
 });

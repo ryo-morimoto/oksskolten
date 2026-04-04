@@ -10,7 +10,7 @@ import { searchRoutes } from "./routes/search";
 import { settingsRoutes } from "./routes/settings";
 import { statsRoutes } from "./routes/stats";
 import { handleAuthorize, handleCallback } from "./auth/github";
-import { handleBrowserLogin, handleBrowserCallback, handleBrowserExchange } from "./auth/browser";
+import { handleBrowserLogin, handleBrowserExchange } from "./auth/browser";
 import { resolveExternalToken } from "./auth/jwt";
 import { startIngestWorkflows, startEnrichWorkflow } from "./pipeline/scheduled";
 import { McpApiHandler } from "./mcp/handler";
@@ -110,7 +110,6 @@ const oauth = new OAuthProvider({
 
       // Browser OAuth routes (outside /api/ prefix so they don't require a token)
       if (url.pathname === "/auth/github/login") return handleBrowserLogin(request, env);
-      if (url.pathname === "/auth/github/callback") return handleBrowserCallback(request, env);
       if (url.pathname === "/auth/github/exchange" && request.method === "POST") {
         return handleBrowserExchange(request, env);
       }
